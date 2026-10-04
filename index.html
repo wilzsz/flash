@@ -7,6 +7,32 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="flash⚡️"/>
 <meta name="theme-color" content="#0C0F1A"/>
+
+<script>
+// ── PERINGATAN PENYIMPANAN: beri tahu kalau simpan gagal / hampir penuh, minta penyimpanan permanen ──
+(function(){
+  var last=0;
+  window.wvStorageFail=function(){
+    if(Date.now()-last<30000)return; last=Date.now();
+    var m='Penyimpanan penuh atau gagal — data terbaru mungkin TIDAK tersimpan. Buat backup sekarang & hapus wallpaper/data tak terpakai.';
+    try{ if(typeof showSimpleToast==='function') showSimpleToast(m); else alert(m); }catch(e){}
+  };
+  window.addEventListener('load',function(){
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+    try{ if(navigator.storage&&navigator.storage.estimate) navigator.storage.estimate().then(function(e){
+      if(e&&e.quota&&e.usage/e.quota>0.8) window.wvStorageFail();
+    }).catch(function(){}); }catch(e){}
+  });
+  // hemat baterai: jeda semua animasi saat app tidak terlihat
+  document.addEventListener('visibilitychange',function(){
+    document.documentElement.classList.toggle('wv-paused',document.hidden);
+  });
+})();
+</script>
+<style>
+html.wv-paused *,html.wv-paused *::before,html.wv-paused *::after{animation-play-state:paused !important}
+@media (prefers-reduced-motion:reduce){.today-done-glow,.today-done-ring,.today-done-core{animation:none !important}}
+</style>
 <title>flash⚡️ – Flashcard Kosakata</title>
 <script>
 // ── IDENTITAS UNIK APLIKASI ──
@@ -153,7 +179,7 @@ try{
   // dengan "mengandung", supaya tetap kena walau nanti dibubuhi
   // prefix profil bahasa oleh sistem profil di bawah.
   var SETTING_MARKERS = [
-    'wilvocab_cardDirection', 'wilvocab_daily_goal', 'wilvocab_shuffle_enabled',
+    'wilvocab_cardDirection', 'wilvocab_daily_goal', 'wilvocab_shuffle_enabled', 'wv_home_file_pct', 'wv_file_pct_metric', 'wv_streak_rule', 'wv_backup_reminder', 'wv_speech_mute', 'wv_speech_speed',
     'wv_accent_base', 'wv_accent_hue', 'wv_accent_sat', 'wv_accent_bri', 'wv_accent_migrated_v2',
     'vocabku_reminder'
   ];
@@ -166,7 +192,9 @@ try{
   var _origGet = localStorage.getItem.bind(localStorage);
   var _origRem = localStorage.removeItem.bind(localStorage);
   localStorage.setItem = function(k, v){
-    var r = _origSet(k, v);
+    var r;
+    try{ r = _origSet(k, v); }
+    catch(err){ try{ if(window.wvStorageFail) window.wvStorageFail(err); }catch(e2){} throw err; }
     if(isSettingKey(k)) cookieSet('wv_bak__' + k, v);
     return r;
   };
@@ -578,6 +606,42 @@ body{
 .home-file-picker{display:flex;gap:7px;overflow-x:auto;padding:2px 2px 2px;margin:10px 0 14px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .home-file-picker::-webkit-scrollbar{display:none}
 .home-file-chip{flex:0 0 auto;padding:7px 14px;border-radius:100px;border:var(--border-w-thin) solid var(--border-light);background:transparent;color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.15s;font-family:var(--font-body)}
+
+.undo-btn{display:none;align-items:center;gap:6px;margin:8px auto 0;padding:6px 14px;border-radius:100px;background:transparent;border:1px solid var(--border-light);color:var(--text3);font-family:var(--font-body);font-size:10.5px;font-weight:700;letter-spacing:0.7px;cursor:pointer}
+.undo-btn:active{opacity:.6}
+.hm-wrap{padding:12px;border-radius:var(--r-md,14px);border:var(--border-w-thin,1px) solid var(--border-light);background:var(--bg2)}
+.hm-grid{display:grid;grid-template-rows:repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:1fr;gap:3px}
+.hm-cell{display:block;aspect-ratio:1;border-radius:3px;background:var(--border-light);opacity:1}
+.hm-grid .hm-cell{min-width:0}
+.hm-l1{background:color-mix(in srgb,var(--accent) 28%,transparent)}
+.hm-l2{background:color-mix(in srgb,var(--accent) 52%,transparent)}
+.hm-l3{background:color-mix(in srgb,var(--accent) 76%,transparent)}
+.hm-l4{background:var(--accent)}
+.hm-today{outline:1.5px solid var(--text);outline-offset:1px}
+.hm-legend{display:flex;align-items:center;gap:4px;margin-top:10px;font-size:9px;color:var(--text3);letter-spacing:.4px}
+.hm-legend .hm-cell{width:10px;height:10px;aspect-ratio:auto}
+.fs-card{margin:10px 0 4px;padding:12px;border-radius:var(--r-md,14px);border:var(--border-w-thin,1px) solid var(--border-light);background:var(--bg2)}
+.fs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fs-cell{text-align:center}
+.fs-val{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
+.fs-label{font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-top:3px}
+.fs-wrong{margin-top:10px;font-size:11px;color:var(--text2);line-height:1.5}
+.fs-wrong span{color:var(--text3)}
+.home-file-chip.locked{opacity:0.55}
+.home-file-chip .hfc-lock{display:inline-flex;width:10px;height:10px;flex-shrink:0;opacity:0.9}
+.home-file-chip .hfc-lock svg{width:100%;height:100%;display:block}
+.stat-cell-sub{font-size:8px;color:var(--text3);margin-top:1px;letter-spacing:0.3px;font-weight:600;white-space:nowrap}
+.home-banner{display:flex;align-items:center;gap:10px;margin:0 0 10px;padding:9px 12px;border-radius:var(--r-md,14px);border:var(--border-w-thin,1px) solid var(--border-light);background:var(--accent-light);color:var(--text);font-size:11.5px;font-weight:600}
+.home-banner .hb-text{flex:1;min-width:0;line-height:1.3}
+.home-banner .hb-btn{flex:0 0 auto;padding:6px 12px;border-radius:100px;border:none;background:var(--accent);color:var(--accent-inv);font-family:var(--font-body);font-size:10.5px;font-weight:700;letter-spacing:0.5px;cursor:pointer}
+.home-banner .hb-x{flex:0 0 auto;background:transparent;border:none;color:var(--text3);font-size:15px;line-height:1;cursor:pointer;padding:2px 4px}
+.streak-shield{display:inline-flex;align-items:center;gap:2px;margin-left:6px;font-size:10px;opacity:0.9}
+.streak-shield svg{width:11px;height:11px}
+.home-file-chip.has-pct{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.15;padding:6px 14px 5px}
+.home-file-chip .hfc-name{display:inline-flex;align-items:center;gap:5px}
+.home-file-chip .hfc-pct{font-size:9.5px;font-weight:700;letter-spacing:0.3px;opacity:0.72;font-variant-numeric:tabular-nums}
+.home-file-chip .hfc-pct.full{color:#3FD18A;opacity:1}
+.home-file-chip.active .hfc-pct.full{color:inherit}
 .home-file-chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-inv);font-weight:700}
 .home-file-chip:hover:not(.active){border-color:var(--text3);color:var(--text)}
 
@@ -2478,9 +2542,14 @@ body.wv-has-wallpaper #wilvocabFooter{
     <div class="header-left">
       <div class="brand-logo"><span class="brand-logo-text">flash</span><span class="brand-logo-bolt"><svg viewBox="0 0 24 24" width="1em" height="1em"><path d="M13 2 L4.5 13.5 H11 L10 22 L19.5 10 H13 L14 2 Z" fill="#FFCB3D"/></svg></span></div>
     </div>
-    <div class="streak-badge" id="streakBadge"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0"><path d="M12.5 2c.3 2.8-1.8 4.1-3.3 6C7.3 10.4 6 12.6 6 15a6 6 0 0 0 12 0c0-2.7-1.2-4.6-2.6-6.2.4 1.7-.3 3-1.6 3.4-1 .3-2-.4-1.9-1.5.2-2-.2-4.2-1.4-8.7z" fill="currentColor"/></svg> <span id="streakCount">0</span> HARI</div>
+    <div style="display:flex;align-items:center;gap:8px"><button id="homeSearchBtn" onclick="wvToggleSearch()" aria-label="Cari kata" style="width:34px;height:34px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0;cursor:pointer;background:var(--surface);border:var(--border-w-thin) solid var(--border-light);color:var(--text2)"><svg id="homeSearchIcon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg></button>
+        <div class="streak-badge" id="streakBadge"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0"><path d="M12.5 2c.3 2.8-1.8 4.1-3.3 6C7.3 10.4 6 12.6 6 15a6 6 0 0 0 12 0c0-2.7-1.2-4.6-2.6-6.2.4 1.7-.3 3-1.6 3.4-1 .3-2-.4-1.9-1.5.2-2-.2-4.2-1.4-8.7z" fill="currentColor"/></svg> <span id="streakCount">0</span> HARI</div></div>
   </div>
   <div class="home-content">
+    <div id="homeSearchWrap" style="display:none;margin:0 0 12px;position:relative">
+      <input type="search" id="homeSearchInput" placeholder="Cari kata..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" oninput="wvHomeSearch(this.value)" style="width:100%;box-sizing:border-box;background:var(--surface);border:var(--border-w) solid var(--border-light);border-radius:var(--r-md);padding:9px 16px;color:var(--text);font-family:var(--font-body);font-size:14px;outline:none;border-radius:100px">
+      <div id="homeSearchResults" style="display:none;margin-top:6px;background:var(--surface);border:var(--border-w) solid var(--border-light);border-radius:var(--r-md);overflow:hidden"></div>
+    </div>
     <!-- Today hero card -->
     <div class="today-card" id="todayCard">
       <div class="today-card-glow"></div>
@@ -2494,7 +2563,7 @@ body.wv-has-wallpaper #wilvocabFooter{
       </div>
       <div class="today-actions">
         <button class="today-btn" id="todayStartBtn" onclick="startSession('daily')"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> MULAI</button>
-        <button class="today-btn reset" onclick="confirmResetDaily()" id="resetDailyBtn"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg> RESET</button>
+        <button class="today-btn reset" onclick="confirmResetDaily(currentDailyCategory())" id="resetDailyBtn"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg> RESET</button>
       </div>
     </div>
     <!-- Pilih sumber belajar: semua kosakata, atau khusus satu file — plus
@@ -2578,12 +2647,83 @@ body.wv-has-wallpaper #wilvocabFooter{
             <button class="step-btn" onclick="changeGoal(5)">+</button>
           </div>
         </div>
+        <div class="setting-row" id="goalSlangRow" style="display:none">
+          <div>
+            <div class="setting-label">Target Slang &amp; Idiom</div>
+            <div class="setting-sub">Kata per hari khusus kategori ini</div>
+          </div>
+          <div class="stepper">
+            <button class="step-btn" onclick="changeGoalFor('slang',-5)">−</button>
+            <div class="step-val" id="goalDisplaySlang">10</div>
+            <button class="step-btn" onclick="changeGoalFor('slang',5)">+</button>
+          </div>
+        </div>
         <div class="setting-row">
           <div>
             <div class="setting-label">Acak Urutan</div>
             <div class="setting-sub">Flash card tampil acak</div>
           </div>
           <button id="shuffleToggle" onclick="toggleShuffle()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Persentase File</div>
+            <div class="setting-sub" id="filePctSubText">Tampilkan % di bawah nama file</div>
+          </div>
+          <button id="filePctToggleBtn" class="toggleSwitchBtn" onclick="toggleFilePct()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Hitung Persentase Dari</div>
+            <div class="setting-sub">Kata hafal, atau kata yang sudah dipelajari</div>
+          </div>
+          <button id="filePctMetricBtn" class="toggleSwitchBtn" onclick="toggleFilePctMetric()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Syarat Streak</div>
+            <div class="setting-sub" id="streakRuleSub">Streak naik kalau salah satu kategori capai target</div>
+          </div>
+          <button id="streakRuleBtn" class="toggleSwitchBtn" onclick="toggleStreakRule()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Pengingat Backup</div>
+            <div class="setting-sub">Ingatkan kalau lebih dari 7 hari belum backup</div>
+          </div>
+          <button id="backupRemindBtn" class="toggleSwitchBtn" onclick="toggleBackupReminder()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Suara Ucapan</div>
+            <div class="setting-sub">Matikan kalau belajar di tempat tenang</div>
+          </div>
+          <button id="speechMuteBtn" class="toggleSwitchBtn" onclick="toggleSpeechMute()" style="
+            padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
+            cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
+          "></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Kecepatan Suara</div>
+            <div class="setting-sub">Berlaku untuk kata &amp; kalimat contoh</div>
+          </div>
+          <button id="speechSpeedBtn" class="toggleSwitchBtn" onclick="cycleSpeechSpeed()" style="
             padding:5px 13px;border-radius:100px;font-family:var(--font-body);font-size:10.5px;font-weight:700;
             cursor:pointer;letter-spacing:0.5px;border:1.5px solid;background:transparent;transition:all 0.2s;
           "></button>
@@ -2897,6 +3037,13 @@ body.wv-has-wallpaper #wilvocabFooter{
         </div>
         <div class="setting-row">
           <div>
+            <div class="setting-label">Penyimpanan</div>
+            <div class="setting-sub" id="storageMeterSub">Menghitung…</div>
+          </div>
+          <div id="storageMeterVal" style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:0.5px"></div>
+        </div>
+        <div class="setting-row">
+          <div>
             <div class="setting-label"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/></svg> Restore Data</div>
             <div class="setting-sub">Import file backup JSON</div>
           </div>
@@ -2907,6 +3054,20 @@ body.wv-has-wallpaper #wilvocabFooter{
             transition:all 0.15s;
           ">IMPORT</button>
           <input type="file" id="backupImportFileInput" accept=".json,application/json" onchange="onBackupImportFileChosen(event)" style="display:none">
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Terhapus Baru-baru Ini</div>
+            <div class="setting-sub" id="wvTrashSub">Kata yang dihapus disimpan 30 hari</div>
+          </div>
+          <button onclick="wvOpenTrash()" style="padding:6px 12px;border-radius:var(--r-sm);font-family:var(--font-body);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;border:var(--border-w) solid var(--border-light);background:transparent;color:var(--text2);">BUKA</button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Backup Otomatis</div>
+            <div class="setting-sub" id="wvAutoSub">3 salinan terakhir disimpan di dalam app</div>
+          </div>
+          <button onclick="wvOpenSnaps()" style="padding:6px 12px;border-radius:var(--r-sm);font-family:var(--font-body);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:0.5px;border:var(--border-w) solid var(--border-light);background:transparent;color:var(--text2);">PULIHKAN</button>
         </div>
       </div>
 
@@ -2978,11 +3139,37 @@ body.wv-has-wallpaper #wilvocabFooter{
     </button>
   </div>
   <div class="card-extras">
+    <button class="extra-btn" id="noteBtn" onclick="editNoteCurrent()" title="Catatan pribadi (jembatan keledai)"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+    <button class="extra-btn btn-bookmark" id="bookmarkBtn" onclick="toggleFavoriteCurrent()" title="Tandai favorit / penting"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12,2 15,9 22,9.5 17,14.5 18.5,22 12,18 5.5,22 7,14.5 2,9.5 9,9"/></svg></button>
     <button class="extra-btn btn-speak" id="speakBtn" onclick="speakWord()" title="Ucapkan"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16 8a5 5 0 0 1 0 8"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
     <button class="extra-btn btn-usage" id="usageBtn" onclick="playUsageExample()" title="Contoh penggunaan (kalimat)"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
   </div>
 </div>
 
+
+<!-- KETIK KATA — lihat arti, ketik kata Inggrisnya (ingatan aktif) -->
+<div class="screen" id="screenTypeWord">
+  <div class="study-header">
+    <button class="back-btn" onclick="goHome()">← BACK</button>
+    <div class="study-title">KETIK KATA</div>
+    <div class="study-prog" id="twProg">1/10</div>
+  </div>
+  <div class="progress-bar-wrap"><div class="progress-bar" id="twProgressBar" style="width:0%"></div></div>
+  <div class="quiz-area">
+    <div class="quiz-question">
+      <div class="quiz-q-label">KETIK KATA INGGRIS UNTUK ARTI INI</div>
+      <div id="twMeaning" style="font-size:22px;font-weight:700;margin:10px 0;line-height:1.3"></div>
+      <div id="twHint" class="quiz-q-pron" style="font-size:12px;opacity:.7"></div>
+    </div>
+    <div style="margin-top:14px">
+      <input type="text" id="twInput" placeholder="Ketik katanya..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" style="width:100%;box-sizing:border-box;background:var(--surface);border:var(--border-w) solid var(--border-light);border-radius:var(--r-md);padding:14px 16px;color:var(--text);font-family:var(--font-body);font-size:15px;outline:none" onkeydown="if(event.key==='Enter'){checkTypeWord()}">
+      <button id="twCheckBtn" onclick="checkTypeWord()" style="width:100%;margin-top:10px;padding:13px;border-radius:var(--r-md);border:none;background:var(--accent);color:var(--accent-inv);font-family:var(--font-body);font-size:13px;font-weight:700;cursor:pointer">CEK</button>
+      <button id="twHintBtn" onclick="twShowHint()" style="width:100%;margin-top:8px;padding:10px;border-radius:var(--r-md);border:var(--border-w) solid var(--border-light);background:transparent;color:var(--text2);font-family:var(--font-body);font-size:12px;font-weight:700;cursor:pointer">PETUNJUK</button>
+    </div>
+    <div id="twFeedback" style="display:none;margin-top:12px;padding:12px 14px;border-radius:var(--r-md);font-size:12.5px;line-height:1.5"></div>
+    <button id="twNextBtn" onclick="twNext()" style="display:none;width:100%;margin-top:10px;padding:13px;border-radius:var(--r-md);border:none;background:var(--text);color:var(--bg);font-family:var(--font-body);font-size:13px;font-weight:700;cursor:pointer">LANJUT</button>
+  </div>
+</div>
 
 <!-- KUIS PILIHAN — 4 opsi arti, distraktor dipilih mirip supaya makin melatih -->
 <div class="screen" id="screenQuiz">
@@ -3345,7 +3532,8 @@ body.wv-has-wallpaper #wilvocabFooter{
   <div class="modal">
     <button class="modal-close" onclick="closeModal()">✕</button>
     <div class="modal-title">RESET SESI?</div>
-    <p style="font-size:14px;color:var(--text2);margin-bottom:20px;line-height:1.6">Kata-kata yang belum hafal dari sesi harian ini akan diulang dari awal. Progress "Tahu" tidak dihapus.</p>
+    <p style="font-size:14px;color:var(--text2);margin-bottom:12px;line-height:1.6">Kata-kata yang belum hafal dari sesi harian ini akan diulang dari awal. Progress "Tahu" tidak dihapus.</p>
+    <p id="resetWarnText" style="font-size:12px;color:var(--text3);margin-bottom:20px;line-height:1.5"></p>
     <div style="display:flex;gap:10px">
       <button onclick="doResetDaily()" style="flex:1;padding:13px;background:var(--text);color:#fff;border:none;border-radius:var(--r-md);font-family:var(--font-body);font-size:13px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;cursor:pointer"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg> YA, RESET</button>
       <button onclick="closeModal()" style="flex:1;padding:13px;background:none;color:var(--text);border:var(--border-w) solid var(--border-light);border-radius:var(--r-md);font-family:var(--font-body);font-size:13px;font-weight:600;cursor:pointer">BATAL</button>
@@ -3509,10 +3697,23 @@ let state = {
   dailySessionWordsSlang: [],
   dailySessionScoped: {},
   dailySessionLockedScope: null,
+  // Kunci sesi harian sekarang PER KATEGORI (Kosakata / Slang & Idiom / dst),
+  // bukan satu kunci global. Format: { kata: 'kata'|'file:<id>', slang: 'list:slang'|'file:<id>' }
+  dailySessionLockedScopes: {},
+  todayCountByList: {},
+  dailySessionStatusByList: {},
+  dailySessionActiveByList: {},
+  carryOver: null,
+  dailyGoalByList: {},
+  streakFreezes: 0,
+  streakNotice: null,
   streakGivenDate: null,
   goalCompletedCount: 0,
 };
 
+function ymdLocal(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
 function todayStr() {
   const d = new Date();
   const mm = String(d.getMonth()+1).padStart(2,'0');
@@ -3531,8 +3732,55 @@ function todayStr() {
 // tetap sama dengan hari ini sehingga fungsi ini tidak melakukan apa-apa
 // — sesi hari ini (dailySessionWords/dailySessionScoped) tetap utuh dan
 // boleh diulang terus lewat tombol ULANGI.
+function dayDiff(aStr, bStr) {
+  var a = aStr.split('-'), b = bStr.split('-');
+  var da = new Date(+a[0], a[1] - 1, +a[2]), db = new Date(+b[0], b[1] - 1, +b[2]);
+  return Math.round((da - db) / 86400000);
+}
+
+// Simpan sisa kata dari sesi harian kemarin yang BELUM TUNTAS, supaya hari
+// ini bisa dilanjutkan lewat banner "Sisa kemarin". Dipanggil sebelum
+// data sesi kemarin dihapus oleh ensureTodayIsFresh().
+function buildCarryOver() {
+  var items = [];
+  var st = state.dailySessionStatusByList || {}, act = state.dailySessionActiveByList || {};
+  var locks = state.dailySessionLockedScopes || {};
+  Object.keys(Object.assign({}, st, act)).forEach(function(cat) {
+    if (!(st[cat] === 'incomplete' || act[cat])) return;
+    var lock = locks[cat], keys = [];
+    if (lock && (lock.indexOf('file:') === 0 || lock.indexOf('list:') === 0)) {
+      var e = state.dailySessionScoped && state.dailySessionScoped[lock];
+      keys = (e && e.words) || [];
+    } else if (cat === 'kata') {
+      keys = state.dailySessionWords || [];
+    }
+    keys = keys.filter(function(w) { return !isWordMastered(w); });
+    if (keys.length) items.push({ cat: cat, words: keys });
+  });
+  state.carryOver = items.length ? { date: state.todayDate, items: items } : null;
+}
+function getCarryWords(cat) {
+  cat = cat || 'kata';
+  var co = state.carryOver;
+  if (!co || !co.items) return [];
+  var it = co.items.filter(function(x) { return x.cat === cat; })[0];
+  if (!it) return [];
+  return it.words.filter(function(w) { return !isWordMastered(w); })
+    .map(function(w) { return vocabFind(w); }).filter(Boolean);
+}
+function dismissCarryOver(cat) {
+  if (state.carryOver && state.carryOver.items) {
+    state.carryOver.items = state.carryOver.items.filter(function(x) { return x.cat !== cat; });
+    if (!state.carryOver.items.length) state.carryOver = null;
+    saveState();
+  }
+  updateHome();
+}
+function startCarryOver(cat) { startSession('carry', cat || 'kata'); }
+
 function ensureTodayIsFresh() {
   if (state.todayDate === todayStr()) return;
+  if (state.todayDate) { try { buildCarryOver(); } catch(e) {} } else { state.carryOver = null; }
   state.todayCount = 0;
   state.todayDate = todayStr();
   state.dailySessionWords = [];
@@ -3544,6 +3792,10 @@ function ensureTodayIsFresh() {
   // Kunci sumber sesi harian (file/daftar/Kosakata) ikut dilepas begitu
   // hari berganti — supaya hari baru = boleh pilih sumber baru lagi.
   state.dailySessionLockedScope = null;
+  state.dailySessionLockedScopes = {};
+  state.todayCountByList = {};
+  state.dailySessionStatusByList = {};
+  state.dailySessionActiveByList = {};
   const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
   const ydMM = String(yesterday.getMonth()+1).padStart(2,'0');
   const ydDD = String(yesterday.getDate()).padStart(2,'0');
@@ -3553,7 +3805,16 @@ function ensureTodayIsFresh() {
   // Tanpa ini, belajar 1-2 kata sehari tanpa pernah capai target harian
   // bisa bikin streak "hidup abadi" padahal seharusnya putus.
   if (state.streakGivenDate !== yd && state.streakGivenDate !== todayStr()) {
-    state.streak = 0;
+    // Pelindung streak: kalau cuma bolos TEPAT 1 hari (kemarin) dan masih
+    // punya pelindung, streak diselamatkan & pelindung terpakai 1.
+    var _gap = state.streakGivenDate ? dayDiff(todayStr(), state.streakGivenDate) : 99;
+    if (state.streak > 0 && _gap === 2 && (state.streakFreezes || 0) > 0) {
+      state.streakFreezes -= 1;
+      state.streakGivenDate = yd;
+      state.streakNotice = 'used';
+    } else {
+      state.streak = 0;
+    }
   }
   saveState();
 }
@@ -3570,7 +3831,34 @@ function loadState() {
   } catch(e) {}
   DAILY_GOAL = state.dailyGoal || 10;
   SHUFFLE_ENABLED = state.shuffleEnabled !== false;
+  try { migrateDailyPerCategory(); } catch(e) {}
   ensureTodayIsFresh();
+}
+
+// Migrasi sekali jalan: data lama (satu kunci/status/hitungan global) dipindah
+// ke struktur per kategori, supaya update ini tidak merusak sesi hari ini.
+function migrateDailyPerCategory() {
+  if (!state.dailySessionLockedScopes) state.dailySessionLockedScopes = {};
+  if (!state.todayCountByList) state.todayCountByList = {};
+  if (!state.dailySessionStatusByList) state.dailySessionStatusByList = {};
+  if (!state.dailySessionActiveByList) state.dailySessionActiveByList = {};
+  var oldLock = state.dailySessionLockedScope;
+  var cat = oldLock ? scopeCategoryOf(oldLock) : 'kata';
+  if (oldLock) {
+    if (!state.dailySessionLockedScopes[cat]) state.dailySessionLockedScopes[cat] = oldLock;
+    state.dailySessionLockedScope = null;
+  }
+  if (state.dailySessionStatus && !Object.keys(state.dailySessionStatusByList).length) {
+    state.dailySessionStatusByList[cat] = state.dailySessionStatus;
+  }
+  state.dailySessionStatus = null;
+  if (state.dailySessionActive && !Object.keys(state.dailySessionActiveByList).length) {
+    state.dailySessionActiveByList[cat] = true;
+  }
+  state.dailySessionActive = false;
+  if ((state.todayCount || 0) > 0 && !Object.keys(state.todayCountByList).length) {
+    state.todayCountByList[cat] = state.todayCount;
+  }
 }
 
 // ── PERINGATAN PENYIMPANAN PENUH ──
@@ -3591,11 +3879,26 @@ function notifyStorageFull() {
   }
 }
 
+// Penyimpanan ditunda ±250ms & digabung (debounce) supaya jawab kartu /
+// buka beranda tidak menulis ulang seluruh state (bisa ratusan KB) berkali-
+// kali per detik. flushState() menulis seketika — dipanggil otomatis saat
+// app ditutup/disembunyikan/reload dan sebelum backup.
+var _saveStateTimer = null;
 function saveState() {
   state.dailyGoal = DAILY_GOAL;
   state.shuffleEnabled = SHUFFLE_ENABLED;
-  try { localStorage.setItem('vocabku_v3_state', JSON.stringify(state)); } catch(e) { console.warn('saveState error (storage full?):', e); notifyStorageFull(); }
+  if (_saveStateTimer) return;
+  _saveStateTimer = setTimeout(flushState, 250);
 }
+function flushState() {
+  if (window.__wvNoFlush) return;
+  if (_saveStateTimer) { clearTimeout(_saveStateTimer); _saveStateTimer = null; }
+  try { localStorage.setItem('vocabku_v3_state', JSON.stringify(state)); } catch(e) { console.warn('saveState error (storage full?):', e); try { notifyStorageFull(); } catch(e2) {} }
+}
+document.addEventListener('visibilitychange', function() { if (document.visibilityState === 'hidden') flushState(); });
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch(e) {}
+window.addEventListener('pagehide', flushState);
+window.addEventListener('beforeunload', flushState);
 
 // ══════════════════════════════════════════════
 // ── SRS ─────────────────────────────────────────────────────
@@ -3801,14 +4104,16 @@ function setHomeSessionFile(id) {
     var f = getWordFile(id);
     if (!f) id = null;
   }
-  // Sesi harian hari ini sudah terkunci ke sumber lain (sudah mulai
-  // dikerjakan) — pindah file sekarang tidak akan mengubah apa pun
-  // sampai besok, jadi jangan biarkan tampilannya seolah-olah berhasil
-  // ganti (supaya tidak membingungkan).
-  var _newKey = id ? ('file:' + id) : 'kata';
-  var _lockedNow = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey() : null;
+  // Kunci sesi harian berlaku PER KATEGORI: kalau kategori yang sedang aktif
+  // (mis. Kosakata) hari ini sudah mulai dikerjakan dari satu file, file lain
+  // di kategori yang SAMA terkunci sampai besok. Kategori lain tidak terpengaruh.
+  var _cat = currentDailyCategory();
+  var _newKey = id ? ('file:' + id) : (_cat === 'kata' ? 'kata' : ('list:' + _cat));
+  var _lockedNow = getLockedDailyScopeKey(_cat);
   if (_lockedNow && _lockedNow !== _newKey) {
-    if (typeof showSimpleToast === 'function') showSimpleToast('Sesi harian ini sudah terkunci. Sumber dapat diganti besok.');
+    var _catInfo = (typeof getListById === 'function') ? getListById(_cat) : null;
+    var _catName = _catInfo ? _catInfo.name : 'kategori ini';
+    if (typeof showSimpleToast === 'function') showSimpleToast('Sesi ' + _catName + ' hari ini sudah terkunci ke file lain. Bisa diganti besok.');
     return;
   }
   homeSessionFileId = id || null;
@@ -3816,6 +4121,145 @@ function setHomeSessionFile(id) {
   renderHomeFilePicker();
   updateHome();
 }
+// ── Pelindung streak: ikon perisai kecil di badge streak + notifikasi ──
+function renderStreakShield() {
+  var badge = document.getElementById('streakBadge');
+  if (!badge) return;
+  var n = state.streakFreezes || 0;
+  var sh = document.getElementById('streakShield');
+  if (!sh) { sh = document.createElement('span'); sh.id = 'streakShield'; sh.className = 'streak-shield'; badge.appendChild(sh); }
+  sh.innerHTML = n > 0 ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/></svg>' + n : '';
+  badge.title = n > 0 ? ('Pelindung streak: ' + n + ' (menyelamatkan streak kalau bolos 1 hari)') : 'Dapat 1 pelindung streak tiap kelipatan 7 hari';
+  if (state.streakNotice) {
+    var nt = state.streakNotice; state.streakNotice = null; saveState();
+    if (typeof showSimpleToast === 'function') {
+      showSimpleToast(nt === 'used' ? 'Pelindung streak terpakai — streak kamu selamat!' : 'Kamu dapat 1 pelindung streak!');
+    }
+  }
+}
+
+// ── Banner di Beranda: "Sisa kemarin" & pengingat backup ──
+function _homeBannerHost() {
+  var card = document.getElementById('todayCard');
+  return card ? card.parentNode : null;
+}
+function _ensureBanner(id, afterEl) {
+  var el = document.getElementById(id);
+  if (!el) { el = document.createElement('div'); el.id = id; el.className = 'home-banner'; }
+  if (afterEl && afterEl.parentNode && el.previousSibling !== afterEl) afterEl.parentNode.insertBefore(el, afterEl.nextSibling);
+  return el;
+}
+function isBackupReminderEnabled() {
+  try { return localStorage.getItem('wv_backup_reminder') !== '0'; } catch(e) { return true; }
+}
+function toggleBackupReminder() {
+  try { localStorage.setItem('wv_backup_reminder', isBackupReminderEnabled() ? '0' : '1'); } catch(e) {}
+  syncBackupReminderUI(); renderHomeBanners();
+}
+function syncBackupReminderUI() {
+  var btn = document.getElementById('backupRemindBtn');
+  if (!btn) return;
+  var on = isBackupReminderEnabled();
+  btn.textContent = on ? 'AKTIF' : 'MATI';
+  btn.style.borderColor = on ? 'var(--accent)' : 'var(--border-light)';
+  btn.style.color = on ? 'var(--accent)' : 'var(--text3)';
+  btn.style.background = on ? 'var(--accent-light)' : 'transparent';
+}
+function snoozeBackupReminder() {
+  try { localStorage.setItem('wv_backup_snooze', String(Date.now() + 2 * 86400000)); } catch(e) {}
+  renderHomeBanners();
+}
+function backupDaysSince() {
+  try {
+    var iso = localStorage.getItem('wv_last_backup');
+    if (!iso) return null;
+    var d = new Date(iso); if (isNaN(d.getTime())) return null;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  } catch(e) { return null; }
+}
+function renderHomeBanners() {
+  var card = document.getElementById('todayCard');
+  if (!card) return;
+  var cat = currentDailyCategory();
+  // 1) Sisa kemarin (per kategori aktif)
+  var carryWords = getCarryWords(cat);
+  var cb = document.getElementById('carryBanner');
+  if (carryWords.length) {
+    cb = _ensureBanner('carryBanner', card);
+    cb.innerHTML = '<div class="hb-text">Sisa kemarin: <b>' + carryWords.length + ' kata</b> belum hafal dari sesi yang belum tuntas</div>'
+      + '<button class="hb-btn" onclick="startCarryOver(\'' + cat + '\')">LANJUT</button>'
+      + '<button class="hb-x" title="Tutup" onclick="dismissCarryOver(\'' + cat + '\')">✕</button>';
+  } else if (cb && cb.parentNode) { cb.parentNode.removeChild(cb); }
+  // 2) Pengingat backup
+  var bb = document.getElementById('backupBanner');
+  var show = false, days = backupDaysSince();
+  try {
+    var hasData = (typeof VOCAB !== 'undefined' && VOCAB.length > 0) && Object.keys(state.learned || {}).length > 0;
+    var snooze = parseInt(localStorage.getItem('wv_backup_snooze') || '0', 10) || 0;
+    show = isBackupReminderEnabled() && hasData && Date.now() > snooze && (days === null || days >= 7);
+  } catch(e) {}
+  if (show) {
+    bb = _ensureBanner('backupBanner', cb && cb.parentNode ? cb : card);
+    bb.innerHTML = '<div class="hb-text">' + (days === null ? 'Datamu belum pernah di-backup.' : 'Sudah ' + days + ' hari belum backup.') + ' Simpan supaya progres aman.</div>'
+      + '<button class="hb-btn" onclick="exportBackup()">BACKUP</button>'
+      + '<button class="hb-x" title="Ingatkan 2 hari lagi" onclick="snoozeBackupReminder()">✕</button>';
+  } else if (bb && bb.parentNode) { bb.parentNode.removeChild(bb); }
+}
+
+// ── Persentase pengerjaan di bawah chip file (Beranda) ──
+// Persen = kata yang sudah HAFAL di file itu / jumlah kata di file itu
+// (definisi yang sama dengan bar progres di tab Progress & layar Detail
+// File). Dihitung dari ISI file (id), bukan namanya, jadi ganti nama file
+// tidak mempengaruhi angkanya. Bisa dimatikan di Pengaturan.
+var FILE_PCT_KEY = 'wv_home_file_pct';
+function isFilePctEnabled() {
+  try { var v = localStorage.getItem(FILE_PCT_KEY); return v === null ? true : v === '1'; }
+  catch(e) { return true; }
+}
+function toggleFilePct() {
+  try { localStorage.setItem(FILE_PCT_KEY, isFilePctEnabled() ? '0' : '1'); } catch(e) {}
+  syncFilePctToggleUI();
+  if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
+}
+function syncFilePctToggleUI() {
+  var mb = document.getElementById('filePctMetricBtn');
+  if (mb) {
+    var lm = getFilePctMetric() === 'learned';
+    mb.textContent = lm ? 'DIPELAJARI' : 'HAFAL';
+    mb.style.borderColor = 'var(--accent)'; mb.style.color = 'var(--accent)'; mb.style.background = 'var(--accent-light)';
+  }
+  var btn = document.getElementById('filePctToggleBtn');
+  if (!btn) return;
+  var on = isFilePctEnabled();
+  btn.textContent = on ? 'AKTIF' : 'MATI';
+  btn.style.borderColor = on ? 'var(--accent)' : 'var(--border-light)';
+  btn.style.color = on ? 'var(--accent)' : 'var(--text3)';
+  btn.style.background = on ? 'var(--accent-light)' : 'transparent';
+}
+// Persentase bisa dihitung dari kata yang sudah HAFAL (default) atau yang
+// sudah DIPELAJARI (pernah dijawab sekali saja).
+function getFilePctMetric() {
+  try { return localStorage.getItem('wv_file_pct_metric') === 'learned' ? 'learned' : 'mastered'; } catch(e) { return 'mastered'; }
+}
+function toggleFilePctMetric() {
+  try { localStorage.setItem('wv_file_pct_metric', getFilePctMetric() === 'learned' ? 'mastered' : 'learned'); } catch(e) {}
+  syncFilePctToggleUI();
+  if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
+}
+function pctMasteredOf(wordObjs) {
+  if (!wordObjs.length) return 0;
+  var learnedMode = getFilePctMetric() === 'learned';
+  var m = 0;
+  for (var i = 0; i < wordObjs.length; i++) {
+    var w = wordObjs[i].word;
+    if (learnedMode ? !!(state.learned && state.learned[w]) : isWordMastered(w)) m++;
+  }
+  return Math.round(m / wordObjs.length * 100);
+}
+function filePctHTML(pct) {
+  return '<span class="hfc-pct' + (pct >= 100 ? ' full' : '') + '">' + pct + '%</span>';
+}
+
 function renderHomeFilePicker() {
   var row = document.getElementById('homeFilePicker');
   if (!row) return;
@@ -3835,13 +4279,30 @@ function renderHomeFilePicker() {
       saveHomeSessionFile(null);
     }
   }
+  // Kalau kategori ini sudah terkunci hari ini, chip yang aktif HARUS ikut
+  // sumber yang terkunci itu (file tertentu, atau "Semua").
+  var _lkPick = getLockedDailyScopeKey(activeListId);
+  if (_lkPick) {
+    var _wantFile = (_lkPick.indexOf('file:') === 0 && getWordFile(_lkPick.slice(5))) ? _lkPick.slice(5) : null;
+    if ((homeSessionFileId || null) !== _wantFile) {
+      homeSessionFileId = _wantFile;
+      saveHomeSessionFile(_wantFile);
+    }
+  }
   var files = getFilesForList(activeListId);
   if (!files.length) { row.innerHTML = ''; row.style.display = 'none'; return; }
   row.style.display = '';
-  var chips = '<button type="button" class="home-file-chip' + (!homeSessionFileId ? ' active' : '') + '" onclick="setHomeSessionFile(null)"><svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2z"/><path d="M17 3v16"/></svg> Semua</button>';
+  var _showPct = isFilePctEnabled();
+  // Chip yang TIDAK cocok dengan sumber yang sudah terkunci hari ini
+  // (kategori ini) diberi gembok & diredupkan — jelas kelihatan sebelum ditekan.
+  var _lockKey = getLockedDailyScopeKey(activeListId);
+  var _allKey = activeListId === 'kata' ? 'kata' : ('list:' + activeListId);
+  var LOCK_SVG = '<span class="hfc-lock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span>';
+  var _allPct = _showPct ? pctMasteredOf(getVocabForList(activeListId)) : 0;
+  var chips = '<button type="button" class="home-file-chip' + (_showPct ? ' has-pct' : '') + (!homeSessionFileId ? ' active' : '') + ((_lockKey && _lockKey !== _allKey) ? ' locked' : '') + '" onclick="setHomeSessionFile(null)"><span class="hfc-name">' + ((_lockKey && _lockKey !== _allKey) ? LOCK_SVG : '') + '<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5a2 2 0 0 1 2-2h11v16H6a2 2 0 0 0-2 2z"/><path d="M17 3v16"/></svg><span class="hfc-name-text">Semua</span></span>' + (_showPct ? filePctHTML(_allPct) : '') + '</button>';
   chips += files.map(function(f) {
     var active = homeSessionFileId === f.id;
-    return '<button type="button" class="home-file-chip' + (active ? ' active' : '') + '" onclick="setHomeSessionFile(\'' + f.id + '\')" title="Belajar khusus dari file ' + cfEsc(f.name) + '">' + cfEsc(f.name) + '</button>';
+    return '<button type="button" class="home-file-chip' + (_showPct ? ' has-pct' : '') + (active ? ' active' : '') + ((_lockKey && _lockKey !== ('file:' + f.id)) ? ' locked' : '') + '" onclick="setHomeSessionFile(\'' + f.id + '\')" title="Belajar khusus dari file ' + cfEsc(f.name) + '"><span class="hfc-name">' + ((_lockKey && _lockKey !== ('file:' + f.id)) ? LOCK_SVG : '') + '<span class="hfc-name-text">' + cfEsc(f.name) + '</span></span>' + (_showPct ? filePctHTML(pctMasteredOf(f.words.map(function(w){ return vocabFind(w); }).filter(Boolean))) : '') + '</button>';
   }).join('');
   row.innerHTML = chips;
   var switchBtn = document.getElementById('homeListSwitchBtn');
@@ -3884,16 +4345,8 @@ function _hlsOutsideClick(ev) {
   closeHomeListSwitcher();
 }
 function chooseHomeList(id) {
-  // Sama seperti setHomeSessionFile(): kalau sesi harian hari ini sudah
-  // terkunci ke kategori/daftar lain, jangan biarkan ganti kategori di
-  // sini terlihat berhasil — sumbernya tidak akan berubah sampai besok.
-  var _newListKey = (id && id !== 'kata') ? ('list:' + id) : 'kata';
-  var _lockedNowL = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey() : null;
-  if (_lockedNowL && _lockedNowL !== _newListKey) {
-    closeHomeListSwitcher();
-    if (typeof showSimpleToast === 'function') showSimpleToast('Sesi harian ini sudah terkunci. Sumber dapat diganti besok.');
-    return;
-  }
+  // Pindah kategori (Kosakata <-> Slang & Idiom) SELALU boleh — tiap
+  // kategori punya sesi harian & kunci sendiri-sendiri.
   homeSessionListId = id || 'kata';
   saveHomeSessionList(homeSessionListId);
   closeHomeListSwitcher();
@@ -4003,7 +4456,7 @@ function renderHomeVocabSummary(total, mastered, notMastered, srs, todayDone) {
   if (statRowTopEl) statRowTopEl.innerHTML =
       '<div class="stat-cell' + (srs.due > 0 ? ' is-accent' : '') + '" onclick="startSession(\'srs\')" title="Mulai SRS"><div class="stat-cell-icon">' + ICON_REVIEW + '</div><div class="stat-cell-num-wrap"><span class="stat-cell-num' + (srs.due > 0 ? ' accent' : '') + '" id="statDueNum">' + srs.due + '</span>' + (srs.due > 0 ? '<span class="stat-cell-dot"></span>' : '') + '</div><div class="stat-cell-label">Perlu Direview</div></div>'
     + '<div class="stat-cell" onclick="showTab(\'hafal\')" title="Lihat kata yang sudah hafal"><div class="stat-cell-icon">' + ICON_MASTERED + '</div><span class="stat-cell-num bright" id="statMasteredNum">' + mastered + '</span><div class="stat-cell-label">Sudah Hafal</div></div>'
-    + '<div class="stat-cell' + (todayDone > 0 ? ' is-accent' : '') + '" onclick="showTab(\'progress\')" title="Lihat progres harian"><div class="stat-cell-icon">' + ICON_TODAY + '</div><span class="stat-cell-num' + (todayDone > 0 ? ' accent' : ' bright') + '" id="statTodayNum">' + todayDone + '</span><div class="stat-cell-label">Hari Ini</div></div>';
+    + '<div class="stat-cell' + (todayDone > 0 ? ' is-accent' : '') + '" onclick="showTab(\'progress\')" title="Lihat progres harian"><div class="stat-cell-icon">' + ICON_TODAY + '</div><span class="stat-cell-num' + (todayDone > 0 ? ' accent' : ' bright') + '" id="statTodayNum">' + todayDone + '</span><div class="stat-cell-label">Hari Ini</div><div class="stat-cell-sub">tugas ' + Math.min(getTodayCountFor((typeof homeSessionListId !== 'undefined' && homeSessionListId) || 'kata'), getGoalFor((typeof homeSessionListId !== 'undefined' && homeSessionListId) || 'kata')) + '/' + getGoalFor((typeof homeSessionListId !== 'undefined' && homeSessionListId) || 'kata') + '</div></div>';
 
   _tweenStat('statTotalNum', total);
   _tweenStat('statDueNum', srs.due);
@@ -4075,22 +4528,22 @@ function pickDailyWordsFromPool(pool) {
     var la = (state.learned[a.word] || {}).lapses || 0, lb = (state.learned[b.word] || {}).lapses || 0;
     if (lb !== la) return lb - la;
     return ((state.learned[a.word] || {}).nextReview || 0) - ((state.learned[b.word] || {}).nextReview || 0);
-  }).slice(0, Math.floor(DAILY_GOAL * 0.5));
+  }).slice(0, Math.floor(getGoalCur() * 0.5));
   var dueKeys = {};
   due.forEach(function(v) { dueKeys[v.word] = true; });
   var newWords = notMastered.filter(function(v) { return !state.learned[v.word] && !dueKeys[v.word]; });
   var newSource = SHUFFLE_ENABLED ? shuffle(newWords.slice()) : newWords.slice();
-  var fillCount = Math.max(0, DAILY_GOAL - due.length);
+  var fillCount = Math.max(0, getGoalCur() - due.length);
   var combined = due.concat(newSource.slice(0, fillCount));
   // Kalau masih kurang dari target padahal sumbernya masih punya kata yang
   // belum hafal (mis. sudah pernah dilihat tapi belum jatuh tempo review),
   // isi sisa slot supaya sesi tidak lebih kecil dari target tanpa alasan.
-  if (combined.length < DAILY_GOAL) {
+  if (combined.length < getGoalCur()) {
     var usedKeys = {};
     combined.forEach(function(v) { usedKeys[v.word] = true; });
     var rest = notMastered.filter(function(v) { return !usedKeys[v.word]; });
     var restSrc = SHUFFLE_ENABLED ? shuffle(rest.slice()) : rest.slice();
-    combined = combined.concat(restSrc.slice(0, DAILY_GOAL - combined.length));
+    combined = combined.concat(restSrc.slice(0, getGoalCur() - combined.length));
   }
   return combined;
 }
@@ -4162,14 +4615,14 @@ function getRepeatScopedSession(cacheKey, pool) {
 // sesi "Semua" MAUPUN sesi per-file/daftar, supaya keduanya konsisten.
 function resizeSessionToGoal(words, pool) {
   var list = (words || []).slice();
-  if (list.length > DAILY_GOAL) {
-    list = list.slice(0, DAILY_GOAL);
-  } else if (list.length < DAILY_GOAL) {
+  if (list.length > getGoalCur()) {
+    list = list.slice(0, getGoalCur());
+  } else if (list.length < getGoalCur()) {
     var usedKeys = {};
     list.forEach(function(v) { usedKeys[v.word] = true; });
     var restPool = (pool || []).filter(function(v) { return v && !usedKeys[v.word] && !isWordMastered(v.word); });
     var restSrc = SHUFFLE_ENABLED ? shuffle(restPool.slice()) : restPool.slice();
-    list = list.concat(restSrc.slice(0, DAILY_GOAL - list.length));
+    list = list.concat(restSrc.slice(0, getGoalCur() - list.length));
   }
   return list;
 }
@@ -4184,8 +4637,11 @@ function getScopedDailySession(cacheKey, pool) {
     var stillValid = topUpSessionAfterMastery(entry.words, pool);
     stillValid = resizeSessionToGoal(stillValid, pool);
     if (stillValid.length > 0) {
-      state.dailySessionScoped[cacheKey] = { date: today, words: stillValid.map(function(v) { return v.word; }) };
-      saveState();
+      var _newKeys = stillValid.map(function(v) { return v.word; });
+      if (_newKeys.join('\u0001') !== entry.words.join('\u0001')) {
+        state.dailySessionScoped[cacheKey] = { date: today, words: _newKeys };
+        saveState();
+      }
       return orderSessionWords(stillValid);
     }
     // Semua kata di cache ternyata sudah hafal semua & tidak ada pengganti
@@ -4202,34 +4658,129 @@ function getScopedDailySession(cacheKey, pool) {
 // cuma "kandidat" — belum tentu jadi sumber yang benar-benar dipakai,
 // lihat getLockedDailyScopeKey()/getDailyWords() di bawah.
 function getDailyScopeKeyFromSelection() {
-  if (typeof homeSessionListId !== 'undefined' && homeSessionListId && homeSessionListId !== 'kata') {
-    return 'list:' + homeSessionListId;
-  }
+  var cat = currentDailyCategory();
   if (typeof homeSessionFileId !== 'undefined' && homeSessionFileId) {
-    return 'file:' + homeSessionFileId;
+    var sf = getWordFile(homeSessionFileId);
+    if (sf && (sf.listId || 'kata') === cat) return 'file:' + sf.id;
+  }
+  if (cat !== 'kata') return 'list:' + cat;
+  return 'kata';
+}
+
+// Kategori dari sebuah kunci sumber: 'kata' → kata, 'list:X' → X,
+// 'file:<id>' → kategori milik file itu (file cuma boleh berisi SATU kategori).
+function scopeCategoryOf(key) {
+  if (!key || key === 'kata') return 'kata';
+  if (key.indexOf('list:') === 0) return key.slice(5) || 'kata';
+  if (key.indexOf('file:') === 0) {
+    var f = (typeof getWordFile === 'function') ? getWordFile(key.slice(5)) : null;
+    return f ? (f.listId || 'kata') : 'kata';
   }
   return 'kata';
 }
 
-// Sesi harian HARI INI terkunci ke SATU sumber (Kosakata utama / satu
-// file / satu daftar) begitu sesi itu benar-benar mulai dikerjakan —
-// bukan cuma dipilih-pilih di beranda. Sekali terkunci, baik tombol
-// "MULAI" (kalau belum selesai) maupun "ULANGI" (kalau target harian
-// sudah tercapai) WAJIB pakai sumber yang SAMA, walau user habis itu
-// pencet file/daftar lain di beranda — supaya tidak ada sesi "ganti di
-// tengah jalan" yang bikin bingung (dikerjakan tapi somehow dianggap
-// beda kata). Kunci ini otomatis lepas begitu tanggal berganti (lihat
-// ensureTodayIsFresh), sehingga besok user bebas pilih sumber baru lagi.
-function getLockedDailyScopeKey() {
+// Kategori yang sedang aktif di Beranda (Kosakata / Slang & Idiom / dst).
+function currentDailyCategory() {
+  var id = (typeof homeSessionListId !== 'undefined' && homeSessionListId) || 'kata';
+  if (typeof getListById === 'function' && !getListById(id)) return 'kata';
+  return id;
+}
+
+// Target harian PER KATEGORI. Kosakata memakai Target Harian utama
+// (DAILY_GOAL); kategori lain (mis. Slang & Idiom) boleh punya target
+// sendiri, dan kalau belum diatur otomatis mengikuti Target Harian utama.
+var _goalCtx = null;
+function getGoalFor(cat) {
+  cat = cat || 'kata';
+  if (cat === 'kata') return DAILY_GOAL;
+  var g = state.dailyGoalByList && state.dailyGoalByList[cat];
+  return (g >= 1 && g <= 50) ? g : DAILY_GOAL;
+}
+function getGoalCur() { return getGoalFor(_goalCtx || (typeof currentDailyCategory === 'function' ? currentDailyCategory() : 'kata')); }
+function changeGoalFor(cat, delta) {
+  if (cat === 'kata') { changeGoal(delta); return; }
+  if (!state.dailyGoalByList) state.dailyGoalByList = {};
+  state.dailyGoalByList[cat] = Math.max(5, Math.min(50, getGoalFor(cat) + delta));
+  saveState(); syncGoalSlangUI(); updateHome();
+}
+function syncGoalSlangUI() {
+  var row = document.getElementById('goalSlangRow');
+  if (row) row.style.display = (typeof isSlangFeatureEnabled === 'function' && isSlangFeatureEnabled()) ? '' : 'none';
+  var d = document.getElementById('goalDisplaySlang');
+  if (d) d.textContent = getGoalFor('slang');
+}
+
+// Kategori yang ikut dihitung untuk pengingat & streak: Kosakata, plus
+// Slang & Idiom kalau fiturnya menyala dan sudah ada katanya.
+function getActiveStudyCategories() {
+  var cats = ['kata'];
+  try {
+    if (typeof isSlangFeatureEnabled === 'function' && isSlangFeatureEnabled() && getVocabForList('slang').length) cats.push('slang');
+  } catch(e) {}
+  return cats;
+}
+// Syarat streak: 'any' (cukup SALAH SATU kategori capai target) atau
+// 'all' (SEMUA kategori aktif harus capai target). Default 'any'.
+function getStreakRule() {
+  try { return localStorage.getItem('wv_streak_rule') === 'all' ? 'all' : 'any'; } catch(e) { return 'any'; }
+}
+function isStreakGoalMet() {
+  var cats = getActiveStudyCategories();
+  var done = cats.map(function(c) { return getTodayCountFor(c) >= getGoalFor(c); });
+  return getStreakRule() === 'all' ? done.every(Boolean) : done.some(Boolean);
+}
+function toggleStreakRule() {
+  try { localStorage.setItem('wv_streak_rule', getStreakRule() === 'all' ? 'any' : 'all'); } catch(e) {}
+  syncStreakRuleUI();
+}
+function syncStreakRuleUI() {
+  var btn = document.getElementById('streakRuleBtn');
+  if (!btn) return;
+  var all = getStreakRule() === 'all';
+  btn.textContent = all ? 'SEMUA' : 'SALAH SATU';
+  btn.style.borderColor = 'var(--accent)'; btn.style.color = 'var(--accent)'; btn.style.background = 'var(--accent-light)';
+  var sub = document.getElementById('streakRuleSub');
+  if (sub) sub.textContent = all ? 'Streak naik kalau SEMUA kategori capai target' : 'Streak naik kalau salah satu kategori capai target';
+}
+
+// Hitungan kata yang sudah dikerjakan HARI INI, per kategori.
+function getTodayCountFor(cat) {
   ensureTodayIsFresh();
-  return state.dailySessionLockedScope || null;
+  return ((state.todayCountByList || {})[cat || 'kata']) || 0;
+}
+
+// Hapus semua cache sesi harian (per-file & per-daftar) milik SATU kategori
+// saja — kategori lain tidak tersentuh.
+function clearScopedSessionsForCategory(cat) {
+  if (!state.dailySessionScoped) return;
+  Object.keys(state.dailySessionScoped).forEach(function(k) {
+    if (scopeCategoryOf(k) === cat) delete state.dailySessionScoped[k];
+  });
+}
+
+// Sesi harian terkunci PER KATEGORI. Begitu sesi sebuah kategori mulai
+// dikerjakan hari ini (mis. Kosakata → file "Level 1"), HANYA kategori itu
+// yang terkunci ke sumber tersebut: file Kosakata lain tidak bisa dipilih
+// sampai besok. Kategori LAIN (mis. Slang & Idiom) tetap bebas & punya
+// sesi harian + target harian sendiri. Kunci lepas otomatis saat ganti
+// hari (lihat ensureTodayIsFresh).
+function getLockedDailyScopeKey(cat) {
+  ensureTodayIsFresh();
+  cat = cat || currentDailyCategory();
+  return (state.dailySessionLockedScopes || {})[cat] || null;
 }
 function lockDailyScopeKey(key) {
-  state.dailySessionLockedScope = key;
+  if (!state.dailySessionLockedScopes) state.dailySessionLockedScopes = {};
+  state.dailySessionLockedScopes[scopeCategoryOf(key)] = key;
   saveState();
 }
 
-function getDailyWords() {
+function getDailyWords(catOverride) {
+  var _prevGoalCtx = _goalCtx;
+  _goalCtx = catOverride || currentDailyCategory();
+  try { return _getDailyWordsImpl(catOverride); } finally { _goalCtx = _prevGoalCtx; }
+}
+function _getDailyWordsImpl(catOverride) {
   // Jaga-jaga kalau app dibiarkan terbuka melewati tengah malam tanpa
   // reload — pastikan dulu tanggalnya masih hari ini sebelum menghitung
   // apa pun, supaya sesi kemarin tidak ikut kebawa ke hari baru.
@@ -4239,18 +4790,30 @@ function getDailyWords() {
   // sesi HARUS mengulang PERSIS kata-kata yang sudah diselesaikan hari
   // ini (bukan sesi baru/acak), konsisten untuk sesi "Semua" MAUPUN sesi
   // yang fokus ke satu file/daftar tertentu.
-  var alreadyDoneToday = (state.todayCount || 0) >= DAILY_GOAL;
+  // Per KATEGORI: target & hitungan harian Kosakata dan Slang & Idiom
+  // terpisah, jadi selesai di satu kategori tidak mengunci kategori lain.
+  var dailyCat = catOverride || currentDailyCategory();
+  var alreadyDoneToday = getTodayCountFor(dailyCat) >= getGoalFor(dailyCat);
 
   // Ambil sumber sesi hari ini: kalau sudah pernah dikunci hari ini,
   // PAKAI ITU (abaikan pilihan file/daftar yang sedang aktif di beranda
   // sekarang, siapa tahu sudah beda) — kalau belum pernah dikunci (ini
   // "MULAI" pertama hari ini), kunci sekarang juga berdasarkan pilihan
   // yang aktif SAAT INI, supaya berlaku PERSIS sumber itu sampai besok.
-  var scopeKey = getLockedDailyScopeKey();
+  var scopeKey = getLockedDailyScopeKey(dailyCat);
   if (!scopeKey) {
-    scopeKey = getDailyScopeKeyFromSelection();
-    lockDailyScopeKey(scopeKey);
+    scopeKey = (catOverride && catOverride !== currentDailyCategory())
+      ? (catOverride === 'kata' ? 'kata' : 'list:' + catOverride)
+      : getDailyScopeKeyFromSelection();
   }
+  // File terkunci/terpilih ternyata sudah kosong/terhapus — balik ke sumber
+  // dasar KATEGORI ITU (bukan lompat ke kategori lain).
+  if (scopeKey.indexOf('file:') === 0) {
+    var _vf = getWordFile(scopeKey.slice(5));
+    var _vp = _vf ? _vf.words.map(function(w){ return vocabFind(w); }).filter(Boolean) : [];
+    if (!_vf || !_vp.length) scopeKey = (dailyCat === 'kata') ? 'kata' : ('list:' + dailyCat);
+  }
+  lockDailyScopeKey(scopeKey);
 
   // Sumber terkunci = sebuah DAFTAR khusus (mis. Slang & Idiom / daftar
   // custom lain) — sesi "MULAI"/"ULANGI" HANYA berisi kata daftar itu.
@@ -4424,6 +4987,11 @@ function startSession(mode, listId) {
     words = getReviewWords(listId);
     if (!words.length) { appAlert('Belum ada kata untuk direview.\nKata baru muncul di sini setelah dipelajari lewat mode Harian.'); return; }
   }
+  else if (mode === 'carry') {
+    words = getCarryWords(listId);
+    if (!words.length) { appAlert('Tidak ada sisa kata dari kemarin.'); return; }
+    words = orderSessionWords(words);
+  }
   else if (mode === 'srs') {
     words = getSRSDueWords(listId).slice(0, DAILY_GOAL);
     if (!words.length) { appAlert('Tidak ada kata SRS yang siap direview sekarang! \nCoba lagi nanti atau pilih mode Review.'); return; }
@@ -4444,7 +5012,7 @@ function startSession(mode, listId) {
   }
 
   session = { words, idx:0, known:0, mode, flipped:false, unknownWords:[], originalTotal: words.length };
-  var studyTitleText = mode==='daily' ? 'HARIAN' : mode==='review' ? 'REVIEW' : mode==='srs' ? 'SRS' : mode==='leech' ? 'KATA BANDEL' : 'SEMUA';
+  var studyTitleText = mode==='carry' ? 'SISA KEMARIN' : mode==='daily' ? 'HARIAN' : mode==='review' ? 'REVIEW' : mode==='srs' ? 'SRS' : mode==='leech' ? 'KATA BANDEL' : 'SEMUA';
   if ((mode === 'review' || mode === 'srs' || mode === 'leech' || mode === 'all') && listId === 'slang') {
     studyTitleText += ' · SLANG & IDIOM';
   }
@@ -4463,6 +5031,9 @@ function startSession(mode, listId) {
     if (lockedScopeForTitle && lockedScopeForTitle.indexOf('file:') === 0) {
       var hfTitle = (typeof getWordFile === 'function') ? getWordFile(lockedScopeForTitle.slice(5)) : null;
       if (hfTitle) studyTitleText = hfTitle.name.toUpperCase();
+    } else if (lockedScopeForTitle && lockedScopeForTitle.indexOf('list:') === 0) {
+      var lmDaily = (typeof getListById === 'function') ? getListById(lockedScopeForTitle.slice(5)) : null;
+      if (lmDaily) studyTitleText = 'HARIAN · ' + lmDaily.name.toUpperCase();
     }
   }
   document.getElementById('studyTitle').textContent = studyTitleText;
@@ -4548,7 +5119,7 @@ function getPracticePool(limit, listId) {
   // Prioritas: kata SRS yang jatuh tempo, lalu kata harian (khusus Kosakata),
   // lalu acak dari kategori yang dipilih (Kosakata ATAU Slang & Idiom).
   var pool = getSRSDueWords(listId);
-  if (!pool.length && listId === 'kata') pool = getDailyWords();
+  if (!pool.length && listId === 'kata') pool = getDailyWords('kata');
   if (!pool.length) pool = shuffle(VOCAB.filter(function(v){ return (v.listId||'kata') === listId; }));
   return pool.slice(0, limit || 10);
 }
@@ -5203,6 +5774,20 @@ function pulseProgressBar(barId, good) {
 //    Kalau dijawab "Belum" di sesi manapun, tetap masuk statistik & SRS asli:
 //    kata itu ikut jadi lebih rendah level SRS-nya / bisa jadi "kata bandel"
 //    kalau berulang kali salah — sama seperti di sesi belajar utama.
+// Apakah jawaban kali ini boleh dihitung ke TUGAS HARIAN (target harian,
+// streak, status SELESAI/BELUM TUNTAS)? HANYA kalau lagi di layar sesi
+// flashcard dan sesinya memang sesi Harian (atau lanjutan "ULANGI KATA
+// YANG BELUM" dari sesi Harian). Review, SRS, Kata Bandel, Semua, file
+// Kelompok Kosakata, kuis, dsb TIDAK menyentuh tugas harian — progres SRS
+// & riwayat belajar tetap tercatat, tapi target harian tidak ikut maju.
+function countsTowardDaily() {
+  try {
+    var scr = document.getElementById('screenStudy');
+    if (!scr || !scr.classList.contains('active')) return false;
+    return !!(session && (session.mode === 'daily' || session.mode === 'repeat'));
+  } catch (e) { return false; }
+}
+
 function recordSrsAnswer(w, knew) {
   // Kalau tengah malam lewat SAAT user masih di tengah sesi flashcard
   // (app tidak di-reload), pastikan jawaban ini tercatat untuk hari yang
@@ -5222,15 +5807,27 @@ function recordSrsAnswer(w, knew) {
     state.learned[w.word].wrongCount = (state.learned[w.word].wrongCount || 0) + 1;
   }
 
-  state.todayCount++;
+  var _daily = countsTowardDaily();
+  if (_daily) {
+    state.todayCount++;
+    if (!state.todayCountByList) state.todayCountByList = {};
+    var _ansV = (typeof vocabFind === 'function') ? vocabFind(w.word) : null;
+    var _ansCat = (w && w.listId) || (_ansV && _ansV.listId) || 'kata';
+    state.todayCountByList[_ansCat] = (state.todayCountByList[_ansCat] || 0) + 1;
+  }
   state.lastStudyDate = todayStr();
 
   // ── Track daily word count for progress chart ──
   if (!state.dailyLog) state.dailyLog = {};
   var today = todayStr();
   state.dailyLog[today] = (state.dailyLog[today] || 0) + 1;
-  if (state.todayCount >= DAILY_GOAL && state.streakGivenDate !== todayStr()) {
+  if (_daily && isStreakGoalMet() && state.streakGivenDate !== todayStr()) {
     state.streak++;
+    // Tiap kelipatan 7 hari streak → dapat 1 pelindung streak (maks 2).
+    if (state.streak % 7 === 0 && (state.streakFreezes || 0) < 2) {
+      state.streakFreezes = (state.streakFreezes || 0) + 1;
+      state.streakNotice = 'earned';
+    }
     if (!state.longestStreak || state.streak > state.longestStreak) state.longestStreak = state.streak;
     state.streakGivenDate = todayStr();
     state.dailySessionDone = true;
@@ -5310,7 +5907,11 @@ function showComplete() {
 function repeatUnknown() {
   if (!session.unknownWords.length) return;
   const words = [...session.unknownWords];
-  session = { words, idx:0, known:0, mode:'repeat', flipped:false, unknownWords:[], originalTotal: words.length };
+  // Lanjutan "ULANGI KATA YANG BELUM" hanya dianggap bagian tugas harian
+  // kalau sesi asalnya memang sesi Harian. Kalau asalnya Review/SRS/dll,
+  // jangan ikut menghitung target & status harian.
+  var _fromDaily = (session.mode === 'daily' || session.mode === 'repeat');
+  session = { words, idx:0, known:0, mode: _fromDaily ? 'repeat' : 'repeat_other', flipped:false, unknownWords:[], originalTotal: words.length };
   document.getElementById('studyTitle').textContent = 'ULANGI';
   showCard();
   showScreen('screenStudy');
@@ -5550,6 +6151,12 @@ function confirmResetDaily(listId) {
   var catName = listInfo ? listInfo.name : 'Kosakata';
   var titleEl = document.querySelector('#resetModal .modal-title');
   if (titleEl) titleEl.textContent = 'RESET SESI ' + catName.toUpperCase() + '?';
+  var wEl = document.getElementById('resetWarnText');
+  if (wEl) {
+    var cnt = getTodayCountFor(_pendingResetListId);
+    wEl.textContent = 'Hitungan hari ini untuk ' + catName + ' (' + cnt + ' kata) akan ikut di-reset ke 0 dan kunci file kategori ini dibuka lagi.'
+      + ((state.streakGivenDate === todayStr()) ? ' Streak hari ini yang sudah tercatat tidak ikut dibatalkan.' : '');
+  }
   document.getElementById('resetModal').classList.add('open');
 }
 
@@ -5560,76 +6167,36 @@ function closeModal() {
 function doResetDaily() {
   var listId = _pendingResetListId || 'kata';
 
-  // Cuma lepas KUNCI sesi harian kalau kategori yang sedang di-reset ini
-  // yang MEMANG sedang mengunci sesi hari ini — supaya reset satu
-  // kategori/daftar tidak diam-diam membuka gembok sesi kategori LAIN
-  // yang sedang berjalan (mis. reset "Slang & Idiom" tidak boleh
-  // melepas kunci sesi "Level 1" yang sedang dikerjakan hari ini).
-  var lockedNow = state.dailySessionLockedScope;
-  var lockMatchesReset = false;
+  // Reset HANYA menyentuh kategori yang dipilih: kunci, hitungan, status
+  // & cache sesi kategori itu saja. Kategori lain (mis. reset "Slang &
+  // Idiom" tidak boleh mengganggu sesi Kosakata yang sedang berjalan)
+  // sama sekali tidak tersentuh.
+  if (state.dailySessionLockedScopes) delete state.dailySessionLockedScopes[listId];
+  if (!state.todayCountByList) state.todayCountByList = {};
+  var catCount = state.todayCountByList[listId] || 0;
+  state.todayCount = Math.max(0, (state.todayCount || 0) - catCount);
+  state.todayCountByList[listId] = 0;
+  if (state.dailySessionStatusByList) delete state.dailySessionStatusByList[listId];
+  if (state.dailySessionActiveByList) delete state.dailySessionActiveByList[listId];
+  clearScopedSessionsForCategory(listId);
+
   if (listId === 'kata') {
-    if (lockedNow === 'kata') {
-      lockMatchesReset = true;
-    } else if (lockedNow && lockedNow.indexOf('file:') === 0) {
-      // File juga termasuk cakupan "Kosakata" kalau filenya sendiri
-      // berkategori 'kata' (atau filenya sudah tidak ada lagi).
-      var lf = (typeof getWordFile === 'function') ? getWordFile(lockedNow.slice(5)) : null;
-      if (!lf || (lf.listId || 'kata') === 'kata') lockMatchesReset = true;
-    }
-  } else if (lockedNow === 'list:' + listId) {
-    lockMatchesReset = true;
-  }
-  if (lockMatchesReset) state.dailySessionLockedScope = null;
-
-  if (listId === 'slang') {
-    // Slang & Idiom: cukup kosongkan cache sesi harian slang-nya saja —
-    // progres "Tahu"/hafalan & sesi harian Kosakata SAMA SEKALI tidak
-    // tersentuh, supaya keduanya benar-benar independen.
+    state.dailySessionWords = [];
+    state.dailySessionDone = false;
+    // Penanda: user SENGAJA menekan ULANGI. Dipakai getDailyWords() sebagai
+    // sinyal "kalau tidak ada kata baru/due, tetap kasih sesi latihan ulang"
+    // alih-alih mentok pesan "Semua kata sudah dikuasai!".
+    state.dailySessionManualReset = true;
+  } else if (listId === 'slang') {
     state.dailySessionWordsSlang = [];
-    if (state.dailySessionScoped) delete state.dailySessionScoped['list:slang'];
-    saveState();
-    closeModal();
-    updateHome();
-    if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
-    if (typeof showSimpleToast === 'function') showSimpleToast('Sesi harian Slang & Idiom telah direset.');
-    return;
   }
-
-  if (listId !== 'kata') {
-    // Daftar custom lain (bukan Kosakata/Slang): kosongkan cache sesi
-    // harian daftar itu saja — pola sama seperti Slang & Idiom di atas —
-    // supaya "Reset Sesi Harian" benar-benar mengambil kata baru untuk
-    // daftar ini juga, bukan cuma untuk Kosakata utama.
-    if (state.dailySessionScoped) delete state.dailySessionScoped['list:' + listId];
-    saveState();
-    closeModal();
-    updateHome();
-    if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
-    if (typeof showSimpleToast === 'function') showSimpleToast('Sesi harian telah direset.');
-    return;
-  }
-
-  // Kosakata (default) — reset pool utama SEKALIGUS semua cache sesi
-  // per-file (semua file ada di bawah kategori Kosakata), supaya kalau
-  // sesi hari ini sedang fokus ke sebuah file, "Reset" ini benar-benar
-  // mengambil kata BARU untuk file itu, bukan cuma mengulang cache lama
-  // yang sama dengan hitungan yang dinolkan.
-  state.dailySessionWords = [];
-  state.dailySessionDone = false;
-  state.todayCount = 0;
-  if (state.dailySessionScoped) {
-    Object.keys(state.dailySessionScoped).forEach(function(k) {
-      if (k.indexOf('file:') === 0) delete state.dailySessionScoped[k];
-    });
-  }
-  // Penanda: user SENGAJA menekan ULANGI. Dipakai getDailyWords() sebagai
-  // sinyal "kalau tidak ada kata baru/due, tetap kasih sesi latihan ulang"
-  // alih-alih mentok pesan "Semua kata sudah dikuasai!".
-  state.dailySessionManualReset = true;
   saveState();
   closeModal();
   updateHome();
-  if (typeof showSimpleToast === 'function') showSimpleToast('Sesi harian telah direset.');
+  if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
+  if (typeof showSimpleToast === 'function') {
+    showSimpleToast(listId === 'slang' ? 'Sesi harian Slang & Idiom telah direset.' : 'Sesi harian telah direset.');
+  }
 }
 
 // ── QUIZ ──────────────────────────────────────────────────
@@ -5964,7 +6531,7 @@ function computeEstimate(listId) {
   var sum = 0, activeDays = 0;
   for (var i = 0; i < 14; i++) {
     var d = new Date(); d.setDate(d.getDate() - i);
-    var key = d.toISOString().slice(0, 10);
+    var key = ymdLocal(d);
     var v = dailyLog[key] || 0;
     sum += v;
     if (v > 0) activeDays++;
@@ -6299,8 +6866,11 @@ function updateHome() {
       if (_hc.wrongCount > 0) wrongCount++;
     }
   }
-  const todayDone = state.todayCount;
-  const remaining = Math.max(0, DAILY_GOAL - todayDone);
+  // Kotak "Hari Ini" = SEMUA kata yang dijawab hari ini (semua mode);
+  // tugas harian per kategori ditampilkan terpisah di bawah angkanya.
+  const todayDone = (state.dailyLog && state.dailyLog[todayStr()]) || 0;
+  // Sisa target di kartu SESI HARI INI dihitung PER KATEGORI yang aktif.
+  const remaining = Math.max(0, getGoalFor(homeStatsListId) - getTodayCountFor(homeStatsListId));
   const total = kataWords.length;
   const notMastered = total - mastered;
   const srs = getSRSStatsForList(homeStatsListId);
@@ -6378,7 +6948,7 @@ function updateHome() {
   // sumber yang terkunci itu — bukan chip yang mungkin lagi ditekan-tekan
   // user SESUDAHNYA — supaya apa yang ditampilkan selalu cocok dengan apa
   // yang akan didapat kalau menekan MULAI/ULANGI sekarang.
-  var _lockedScopeHome = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey() : null;
+  var _lockedScopeHome = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey(homeStatsListId) : null;
   var _previewFileId = _lockedScopeHome
     ? (_lockedScopeHome.indexOf('file:') === 0 ? _lockedScopeHome.slice(5) : null)
     : ((typeof homeSessionFileId !== 'undefined') ? homeSessionFileId : null);
@@ -6386,6 +6956,7 @@ function updateHome() {
     ? (_lockedScopeHome.indexOf('list:') === 0 ? _lockedScopeHome.slice(5) : null)
     : ((typeof homeSessionListId !== 'undefined' && homeSessionListId !== 'kata') ? homeSessionListId : null);
 
+  if (_previewFileId) _previewListId = null; // file yang dipilih/terkunci menang atas daftar
   if (_previewFileId && !isTodayDone) {
     var hf2 = (typeof getWordFile === 'function') ? getWordFile(_previewFileId) : null;
     if (hf2) {
@@ -6478,8 +7049,8 @@ function updateHome() {
   // ini sedang berjalan/sudah selesai dari sebuah file/daftar.
   const resetBtn = document.getElementById('resetDailyBtn');
   if (resetBtn) {
-    var _hasMainSession = state.dailySessionWords && state.dailySessionWords.length > 0;
-    var _lockedScopeForBtn = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey() : null;
+    var _hasMainSession = homeStatsListId === 'kata' && state.dailySessionWords && state.dailySessionWords.length > 0;
+    var _lockedScopeForBtn = (typeof getLockedDailyScopeKey === 'function') ? getLockedDailyScopeKey(homeStatsListId) : null;
     var _hasScopedSession = false;
     if (_lockedScopeForBtn && state.dailySessionScoped && state.dailySessionScoped[_lockedScopeForBtn]) {
       var _sc = state.dailySessionScoped[_lockedScopeForBtn];
@@ -6489,6 +7060,16 @@ function updateHome() {
   }
   renderShuffleBtn();
   syncSlangFeatureToggleUI();
+  syncFilePctToggleUI();
+  syncStreakRuleUI();
+  syncBackupReminderUI();
+  syncGoalSlangUI();
+  // Skrip tambahan (suara/meter) dimuat SETELAH render pertama beranda,
+  // jadi panggilannya dijaga supaya render awal tidak error.
+  if (typeof syncSpeechUI === 'function') syncSpeechUI();
+  if (typeof syncStorageMeter === 'function') syncStorageMeter();
+  renderHomeBanners();
+  renderStreakShield();
  } catch (e) {
   console.error('updateHome() gagal sebagian:', e);
  }
@@ -6526,6 +7107,7 @@ function getActiveProfileInfo() {
 
 function exportBackup() {
   try {
+    flushState();
     var prof = getActiveProfileInfo();
     // Kunci-kunci localStorage LAIN di luar object "state" utama — tanpa ini,
     // backup cuma menyimpan progress SRS tapi kehilangan kosakata custom
@@ -6534,17 +7116,19 @@ function exportBackup() {
     var EXTRA_LS_KEYS = [
       'vocabku_custom_words','vocabku_word_files','vocabku_custom_flash_progress','vocabku_custom_lists',
       'wilvocab_cardDirection',
-      'wilvocab_daily_goal','wilvocab_shuffle_enabled',
+      'wilvocab_daily_goal','wilvocab_shuffle_enabled','wv_home_file_pct','wv_file_pct_metric','wv_streak_rule','wv_backup_reminder','wv_speech_mute','wv_speech_speed',
       'wv_wallpaper_data','wv_wallpaper_zoom','wv_wallpaper_dim',
       'wv_accent_base','wv_accent_hue','wv_accent_sat','wv_accent_bri',
       'wv_text_base','wv_text_hue','wv_text_sat','wv_text_bri',
       'wv_font_choice','wv_font_size','wv_border_w','wv_border_r','wv_stat_blur','wv_card_tint',
-      'vocabku_reminder'
+      'vocabku_reminder','vocabku_favorites','vocabku_notes'
     ];
     var localExtras = {};
     EXTRA_LS_KEYS.forEach(function(k){
       try { var v = localStorage.getItem(k); if (v !== null) localExtras[k] = v; } catch(e) {}
     });
+    // Wallpaper sekarang disimpan di IndexedDB — masukkan ke backup supaya tidak hilang.
+    if (!localExtras['wv_wallpaper_data'] && window._wvWpData) localExtras['wv_wallpaper_data'] = window._wvWpData;
     var data = {
       version: 4,
       exportDate: new Date().toISOString(),
@@ -6557,17 +7141,33 @@ function exportBackup() {
     var json = JSON.stringify(data, null, 2);
     var blob = new Blob([json], { type: 'application/json' });
     var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
     var date = new Date().toISOString().slice(0,10);
-    a.href = url;
-    a.download = 'wilvocab-backup-kode' + prof.code + '-' + prof.slug + '-' + date + '.json';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    try { localStorage.setItem('wv_last_backup', new Date().toISOString()); } catch(e) {}
-    renderLastBackupText();
-    showToast('<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/></svg>', 'BACKUP BERHASIL', 'Data telah disimpan ke file.');
+    var fname = 'wilvocab-backup-kode' + prof.code + '-' + prof.slug + '-' + date + '.json';
+    function markBackupDone() {
+      try { localStorage.setItem('wv_last_backup', new Date().toISOString()); } catch(e) {}
+      renderLastBackupText();
+      try { renderHomeBanners(); } catch(e) {}
+      showToast('<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/></svg>', 'BACKUP BERHASIL', 'Data telah disimpan ke file.');
+    }
+    function downloadBackup() {
+      var a = document.createElement('a');
+      a.href = url; a.download = fname;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+      markBackupDone();
+    }
+    // Di HP (iOS/Android) pakai lembar Bagikan supaya bisa langsung
+    // "Simpan ke File"/iCloud; kalau tidak didukung, unduh biasa.
+    try {
+      var shareFile = new File([blob], fname, { type: 'application/json' });
+      if (navigator.canShare && navigator.canShare({ files: [shareFile] }) && navigator.share) {
+        navigator.share({ files: [shareFile], title: 'Backup flash' })
+          .then(function(){ URL.revokeObjectURL(url); markBackupDone(); })
+          .catch(function(err){ if (err && err.name === 'AbortError') { URL.revokeObjectURL(url); return; } downloadBackup(); });
+        return;
+      }
+    } catch(e) {}
+    downloadBackup();
   } catch(e) {
     appAlert('Gagal export: ' + e.message);
   }
@@ -6724,7 +7324,7 @@ function importBackup(event) {
         // Reset semua input file type json
         document.querySelectorAll('input[type="file"][accept=".json"]').forEach(function(el){ try{el.value='';}catch(e){} });
         showToast('<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="currentColor" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="8 12.5 11 15.5 16 9"/></svg>', 'IMPORT BERHASIL', 'Progres berhasil dipulihkan.');
-        setTimeout(function() { location.reload(); }, 1500);
+        flushState(); setTimeout(function() { location.reload(); }, 1500);
       });
     } catch(err) {
       appAlert('Gagal import: ' + err.message);
@@ -7082,6 +7682,9 @@ function syncCustomWordsIntoVocab() {
   });
 }
 
+function jsAttr(str) {
+  return cfEsc(String(str == null ? '' : str).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));
+}
 function cfEsc(str) {
   if (str === undefined || str === null) return '';
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -7353,6 +7956,8 @@ function renderFileDetailScreen() {
     + '<button class="fd-play-btn" onclick="startFileFlashcard()"' + (wordObjs.length ? '' : ' disabled') + '><svg viewBox="0 0 24 24" width="14" height="14" style="flex-shrink:0" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> ' + (allMastered ? 'Ulangi Semua (Sudah Hafal)' : ('Belajar File Ini (' + Math.min(DAILY_GOAL, wordObjs.length - masteredCount) + ' Kata Sesuai Target Harian)')) + '</button>'
     + '</div>';
 
+  html += renderFileStatsCard(f, wordObjs);
+
   // ── Kata yang sudah ada di file — tiap kata diberi label status
   // (Baru/Belajar/Hafal) yang sama seperti di tab Kosakata, supaya kata
   // yang sudah hafal jelas terlihat beda dari yang belum dipelajari. ──
@@ -7375,7 +7980,7 @@ function renderFileDetailScreen() {
         + '<div class="fd-word-title"><span class="fd-word-name">' + cfEsc(v.word) + '</span>' + (v.pronunciation ? '<span style="font-size:10.5px;color:var(--text3)">[' + cfEsc(v.pronunciation) + ']</span>' : '') + statusPill + '</div>'
         + '<div class="fd-word-meaning">' + cfEsc(v.meaning) + '</div>'
         + '</div>'
-        + '<button class="word-action-btn word-action-neutral" onclick="removeWordFromFile(\'' + v.word.replace(/'/g,"\\'") + '\')" title="Keluarkan dari file" aria-label="Keluarkan dari file">' + ICON_X_SVG + '</button>'
+        + '<button class="word-action-btn word-action-neutral" onclick="removeWordFromFile(\'' + jsAttr(v.word) + '\')" title="Keluarkan dari file" aria-label="Keluarkan dari file">' + ICON_X_SVG + '</button>'
         + '</div>';
     }).join('');
   } else {
@@ -7544,7 +8149,7 @@ function renderFileDetailSearchResults() {
 
   results.innerHTML = shown.map(function(v) {
     var checked = f.words.indexOf(v.word) !== -1;
-    var wEsc = v.word.replace(/'/g,"\\'");
+    var wEsc = jsAttr(v.word);
     var initial = v.word.charAt(0).toUpperCase();
     var lc = getListColor(v.listId);
     var avatarStyle = lc ? (' style="background:' + lc + '22;color:' + lc + '"') : '';
@@ -7779,7 +8384,8 @@ function updateKosakataSelectBar() {
 function bulkDeleteSelectedWords() {
   var selectedWords = Object.keys(kosakataSelected);
   if (!selectedWords.length) return;
-  appConfirm('Hapus ' + selectedWords.length + ' kata terpilih? Tindakan ini tidak bisa dibatalkan.', function() {
+  appConfirm('Hapus ' + selectedWords.length + ' kata terpilih? Kata dipindah ke "Terhapus baru-baru ini" dan bisa dipulihkan selama 30 hari.', function() {
+    if (window.wvTrashWords) wvTrashWords(selectedWords);
     var words = loadCustomWords().filter(function(w){ return selectedWords.indexOf(w.word) === -1; });
     saveCustomWords(words);
     syncCustomWordsIntoVocab();
@@ -8215,12 +8821,12 @@ function renderKosakataList(query, preserveLimit) {
       }).join('') + '</div>') : '';
     var example = w.example ? ('<div style="font-size:11px;color:var(--text3);margin-top:3px;font-style:italic;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">“' + cfEsc(w.example) + '”</div>') : '';
     var leftControl = kosakataSelectMode
-      ? '<input type="checkbox" class="kosakata-checkbox" ' + (kosakataSelected[w.word] ? 'checked' : '') + ' onchange="toggleKosakataWordSelect(\'' + w.word.replace(/'/g,"\\'") + '\', this.checked)">'
+      ? '<input type="checkbox" class="kosakata-checkbox" ' + (kosakataSelected[w.word] ? 'checked' : '') + ' onchange="toggleKosakataWordSelect(\'' + jsAttr(w.word) + '\', this.checked)">'
       : '<span title="' + (mastered ? 'Sudah hafal (otomatis dari SRS)' : 'Masih dalam proses belajar') + '" style="flex-shrink:0;width:7px;height:7px;margin-top:4px;border-radius:50%;background:' + (mastered ? 'var(--green-stabilo)' : 'var(--border)') + '"></span>';
     var rightControls = kosakataSelectMode ? '' :
       '<div class="word-actions">'
-      + '<button class="word-action-btn word-action-edit" onclick="editWordModal(\'' + w.word.replace(/'/g,"\\'") + '\')" title="Edit" aria-label="Edit kata">' + ICON_EDIT_SVG + '</button>'
-      + '<button class="word-action-btn word-action-delete" onclick="deleteCustomWordByWord(\'' + w.word.replace(/'/g,"\\'") + '\')" title="Hapus" aria-label="Hapus kata">' + ICON_DELETE_SVG + '</button>'
+      + '<button class="word-action-btn word-action-edit" onclick="editWordModal(\'' + jsAttr(w.word) + '\')" title="Edit" aria-label="Edit kata">' + ICON_EDIT_SVG + '</button>'
+      + '<button class="word-action-btn word-action-delete" onclick="deleteCustomWordByWord(\'' + jsAttr(w.word) + '\')" title="Hapus" aria-label="Hapus kata">' + ICON_DELETE_SVG + '</button>'
       + '</div>';
     return '<div class="custom-word-item' + (mastered ? ' is-mastered' : '') + '">'
       + leftControl
@@ -8279,6 +8885,21 @@ function openAddWordModalForFile(fileId) {
     wordModalSelectedListId = getListById(f.listId) ? f.listId : 'kata';
     renderWordListPicker();
   }
+}
+
+// Sesi belajar menyimpan SALINAN objek kata saat sesi dibuat. Setelah kata
+// diedit, VOCAB dibangun ulang dengan objek baru, jadi kartu yang sedang
+// jalan masih memegang data LAMA (arti/pelafalan/contoh tidak berubah).
+// Fungsi ini menukar objek lama dengan yang baru di semua antrean sesi.
+function refreshWordInSessions(word) {
+  var fresh = (typeof vocabFind === 'function') ? vocabFind(word) : null;
+  if (!fresh) return;
+  function swap(arr) {
+    if (!Array.isArray(arr)) return;
+    for (var i = 0; i < arr.length; i++) if (arr[i] && arr[i].word === word) arr[i] = fresh;
+  }
+  try { if (typeof session !== 'undefined' && session) { swap(session.words); swap(session.unknownWords); } } catch(e) {}
+  try { if (typeof cfSession !== 'undefined' && cfSession) { swap(cfSession.words); swap(cfSession.unknownWords); } } catch(e) {}
 }
 
 function editCurrentStudyWord() {
@@ -8367,18 +8988,23 @@ function submitBulkImport() {
   VOCAB.forEach(function(v){ existing[v.word.toLowerCase()] = true; });
   var bulkListId = getListById(bulkModalSelectedListId) ? bulkModalSelectedListId : 'kata';
 
-  var added = 0, skipped = 0, addedWords = [], duplicateWords = [], invalidLines = [];
+  var added = 0, skipped = 0, addedWords = [], duplicateWords = [], invalidLines = [], sameCount = 0, diffList = [];
   lines.forEach(function(line) {
     var parts = line.split(/\s*[-:–]\s*/);
     if (parts.length < 2) { skipped++; invalidLines.push(line); return; }
     var word = parts[0].trim().toLowerCase();
     var meaning = parts.slice(1).join(' - ').trim();
     if (!word || !meaning) { skipped++; invalidLines.push(line); return; }
-    // ── KATA DOBEL DITOLAK, TIDAK DITAMBAHKAN ── kalau kata ini sudah
-    // ada (baik di kosakata bawaan/custom, MAUPUN dobel di dalam daftar
-    // tempel ini sendiri), lewati dan catat supaya bisa diberi tahu ke
-    // pengguna kata mana saja yang dilewati.
-    if (existing[word]) { skipped++; duplicateWords.push(word); return; }
+    // Kata sudah ada: bandingkan arti. Sama persis -> 'sudah ada';
+    // beda -> dicatat supaya pengguna bisa memilih menimpa atau tidak.
+    if (existing[word]) {
+      skipped++;
+      var _prev = VOCAB.find(function(v){ return v.word.toLowerCase() === word; });
+      var _nm = function(x){ return String(x||'').toLowerCase().replace(/\s+/g,' ').trim(); };
+      if (!_prev || _nm(_prev.meaning) === _nm(meaning)) { sameCount++; duplicateWords.push(word); }
+      else { diffList.push({ word: word, meaning: meaning, isCustom: !!_prev.isCustom }); }
+      return;
+    }
     words.push({ word: word, meaning: meaning, pronunciation: '', example: '', category: 'Umum', isCustom: true, listId: bulkListId, isSlang: bulkListId === 'slang' });
     existing[word] = true;
     addedWords.push(word);
@@ -8393,14 +9019,22 @@ function submitBulkImport() {
   var targetFileId = addWordModalTargetFileId;
   closeAddWordModal();
 
-  // Peringatan eksplisit soal kata dobel yang DITOLAK — bukan cuma
-  // angka "dilewati" di toast, supaya pengguna tahu persis kata apa
-  // saja yang tidak ditambahkan karena sudah ada.
-  if (duplicateWords.length) {
-    var DUP_SHOW = 20;
-    var dupList = duplicateWords.slice(0, DUP_SHOW).join(', ');
-    var dupMore = duplicateWords.length > DUP_SHOW ? (' dan ' + (duplicateWords.length - DUP_SHOW) + ' lainnya') : '';
-    appAlert(duplicateWords.length + ' kata sudah ada di kosakata sehingga TIDAK ditambahkan lagi: ' + dupList + dupMore + '.');
+  // Ringkasan impor: ditambahkan / sudah ada / arti berbeda / baris tidak valid.
+  if (sameCount || diffList.length || invalidLines.length) {
+    var parts = [added + ' ditambahkan', sameCount + ' sudah ada (arti sama)'];
+    if (diffList.length) parts.push(diffList.length + ' arti berbeda: ' + diffList.slice(0, 8).map(function(d){ return d.word; }).join(', ') + (diffList.length > 8 ? ' dst' : ''));
+    if (invalidLines.length) parts.push(invalidLines.length + ' baris tidak valid');
+    var summaryMsg = parts.join(' · ') + '.';
+    var overwritable = diffList.filter(function(d){ return d.isCustom; });
+    if (overwritable.length) {
+      appConfirm(summaryMsg + ' Timpa arti lama dengan arti baru untuk ' + overwritable.length + ' kata buatanmu? (Kata bawaan app tidak diubah.)', function() {
+        var cw = loadCustomWords();
+        overwritable.forEach(function(d){ var t = cw.find(function(x){ return x.word.toLowerCase() === d.word; }); if (t) t.meaning = d.meaning; });
+        saveCustomWords(cw); syncCustomWordsIntoVocab();
+        var si = document.getElementById('kosakataSearchInput'); renderKosakataList(si ? si.value : ''); updateHome();
+        if (typeof showSimpleToast === 'function') showSimpleToast(overwritable.length + ' arti diperbarui.');
+      }, 'RINGKASAN IMPOR');
+    } else appAlert(summaryMsg, 'RINGKASAN IMPOR');
   }
 
   if (targetFileId) {
@@ -8510,6 +9144,7 @@ function renameWordFile(id) {
     if (target) target.name = newName;
     saveWordFiles(files);
     renderWordFilesScreen();
+    if (typeof renderHomeFilePicker === 'function') renderHomeFilePicker();
   }, 'GANTI NAMA FILE');
 }
 
@@ -8951,7 +9586,7 @@ function renderProgressScreen() {
   for (var i = 6; i >= 0; i--) {
     var d = new Date();
     d.setDate(d.getDate() - i);
-    var key = d.toISOString().slice(0, 10);
+    var key = ymdLocal(d);
     var val = dailyLog[key] || 0;
     if (val > maxVal) maxVal = val;
     days.push({ label: ['Min','Sen','Sel','Rab','Kam','Jum','Sab'][d.getDay()], val: val, isToday: i === 0 });
@@ -8986,6 +9621,7 @@ function renderProgressScreen() {
 
   // ── Cadangan Data (Ekspor/Impor) — sekarang di bawah Aktivitas 7 Hari,
   // tetap khusus untuk kategori/tab yang sedang aktif. ──
+  html += renderHeatmapSection();
   html += renderCadanganDataSection(progressActiveTab);
 
   // ── Pengingat Harian TIDAK ditampilkan lagi di layar Progress —
@@ -9045,6 +9681,13 @@ function importVocabBackup(file, expectedListId) {
     var data;
     try { data = JSON.parse(e.target.result); }
     catch (err) { appAlert('File tidak valid. Pastikan ini file cadangan kosakata (.json) yang benar.'); return; }
+
+    // Backup LENGKAP (tombol BACKUP di banner: progres belajar + pengaturan) punya `state`, bukan `words`.
+    // Arahkan ke pemulih lengkap supaya file itu bisa di-restore lewat tombol Import yang sama.
+    if (data && data.state && typeof data.state === 'object' && !Array.isArray(data.words)) {
+      importBackup({ target: { files: [file] } });
+      return;
+    }
 
     if (!data || !Array.isArray(data.words)) { appAlert('Format file tidak dikenali.'); return; }
 
@@ -9206,12 +9849,27 @@ function addCustomWord() {
     // diedit adalah kata yang lagi ditampilkan, biar langsung ketauan
     // hasilnya tanpa perlu keluar-masuk sesi lagi.
     var studyActiveNow = document.getElementById('screenStudy') && document.getElementById('screenStudy').classList.contains('active');
+    refreshWordInSessions(word);
     if (studyActiveNow && typeof session !== 'undefined' && session.words && session.words[session.idx] && session.words[session.idx].word === word) {
+      // Pertahankan posisi kartu (depan/belakang) supaya arti yang baru
+      // diedit langsung kelihatan, bukan malah balik ke sisi depan.
+      var wasFlipped = !!session.flipped;
       showCard();
+      if (wasFlipped) {
+        session.flipped = true;
+        var fc = document.getElementById('flashcard');
+        if (fc) { fc.style.transition = 'none'; fc.classList.add('flipped'); void fc.offsetWidth; fc.style.transition = ''; }
+      }
     }
     var cfActiveNow = document.getElementById('screenCustomFlash') && document.getElementById('screenCustomFlash').classList.contains('active');
     if (cfActiveNow && typeof cfSession !== 'undefined' && cfSession.words && cfSession.words[cfSession.idx] && cfSession.words[cfSession.idx].word === word) {
+      var cfWasFlipped = !!cfSession.flipped;
       cfShowCard();
+      if (cfWasFlipped) {
+        cfSession.flipped = true;
+        var cfc = document.getElementById('cfFlashcard');
+        if (cfc) { cfc.style.transition = 'none'; cfc.classList.add('flipped'); void cfc.offsetWidth; cfc.style.transition = ''; }
+      }
     }
     if (typeof showSimpleToast === 'function') showSimpleToast('"' + word + '" berhasil diperbarui.');
     return;
@@ -9258,7 +9916,8 @@ function addCustomWord() {
 }
 
 function deleteCustomWordByWord(word) {
-  appConfirm('Hapus kata "' + word + '" dari kosakata? Tindakan ini tidak bisa dibatalkan.', function() {
+  appConfirm('Hapus kata "' + word + '"? Kata dipindah ke "Terhapus baru-baru ini" dan bisa dipulihkan selama 30 hari.', function() {
+    if (window.wvTrashWords) wvTrashWords([word]);
     var words = loadCustomWords().filter(function(w){ return w.word !== word; });
     saveCustomWords(words);
     syncCustomWordsIntoVocab();
@@ -9553,25 +10212,21 @@ function startReminderScheduler() {
     var s = loadReminderSettings(); if (!s.enabled) return;
     var now = new Date();
     var hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-    var goalDone = (state.todayCount || 0) >= DAILY_GOAL;
-    // Konsisten dengan aturan yang sama di seluruh app (lihat updateHome):
-    // Kosakata & Slang/Idiom TIDAK PERNAH digabung jadi satu angka —
-    // pengingat ini pakai daftar yang lagi aktif dipilih user di Beranda,
-    // bukan total gabungan semua daftar (yang bisa menyesatkan).
-    var reminderListId = (typeof homeSessionListId !== 'undefined' && getListById(homeSessionListId)) ? homeSessionListId : 'kata';
-    var srsDue = getSRSStatsForList(reminderListId).due;
-    // Notif jam terjadwal kalau target harian belum tercapai ATAU ada kata SRS
-    // yang jatuh tempo direview (bukan cuma target harian biasa).
-    if (hhmm === s.time && (!goalDone || srsDue > 0)) {
+    // Pengingat ikut sistem per kategori: tiap kategori aktif (Kosakata,
+    // Slang & Idiom) punya target sendiri, jadi pesan menyebut kategori
+    // mana yang masih kurang — bukan total gabungan.
+    var rCats = getActiveStudyCategories();
+    var pending = rCats.filter(function(c) { return getTodayCountFor(c) < getGoalFor(c); });
+    var srsDue = 0;
+    rCats.forEach(function(c) { srsDue += getSRSStatsForList(c).due; });
+    var anyStudied = rCats.some(function(c) { return getTodayCountFor(c) > 0; });
+    function catName(c) { var l = getListById(c); return l ? l.name : c; }
+    if (hhmm === s.time && (pending.length || srsDue > 0)) {
       if (Notification.permission === 'granted') {
-        var remaining = DAILY_GOAL - (state.todayCount || 0);
         var msg;
-        if (state.todayCount === 0 && srsDue > 0) {
-          msg = '⏰ Kamu belum belajar hari ini, dan ada ' + srsDue + ' kata SRS yang siap direview. Yuk jaga streak-mu!';
-        } else if (state.todayCount === 0) {
-          msg = '⏰ Kamu belum belajar hari ini! Selesaikan ' + DAILY_GOAL + ' kata untuk jaga streak.';
-        } else if (!goalDone) {
-          msg = '🔥 Tinggal ' + remaining + ' kata lagi untuk target hari ini!' + (srsDue > 0 ? ' (' + srsDue + ' kata SRS juga sudah siap direview)' : '');
+        if (pending.length) {
+          var parts = pending.map(function(c) { return catName(c) + ' (' + (getGoalFor(c) - getTodayCountFor(c)) + ' kata)'; }).join(' & ');
+          msg = (!anyStudied ? '⏰ Kamu belum belajar hari ini! ' : '🔥 Masih ada target hari ini: ') + parts + '.' + (srsDue > 0 ? ' Ada ' + srsDue + ' kata SRS siap direview juga.' : '');
         } else {
           msg = '📚 Ada ' + srsDue + ' kata SRS yang siap direview hari ini. Sebentar aja, biar tidak lupa lagi.';
         }
@@ -11152,19 +11807,47 @@ var WVColor = (function(){
   var LS_DATA = 'wv_wallpaper_data';   // dataURL (JPEG terkompres)
   var LS_ZOOM = 'wv_wallpaper_zoom';   // 100–250 (%)
   var LS_DIM  = 'wv_wallpaper_dim';    // 0–90 (%)
-  var MAX_DIM_PX = 1600;               // ukuran maksimum sisi terpanjang setelah kompresi
-  var JPEG_QUALITY = 0.82;
+  var MAX_DIM_PX = 1280;               // ukuran maksimum sisi terpanjang setelah kompresi
+  var JPEG_QUALITY = 0.78;
 
   var wp = { data:null, zoom:100, dim:45 };
 
+  // Wallpaper disimpan di IndexedDB (bukan localStorage) supaya tidak memakan kuota 5 MB data belajar.
+  var WDB='wilvocab_wallpaper', WST='kv';
+  function wpKey(){ try{ return 'wp_'+(localStorage.getItem('wv_active_profile_v1')||'default'); }catch(e){ return 'wp_default'; } }
+  function wpDb(){ return new Promise(function(res,rej){
+    if(!window.indexedDB) return rej();
+    var r=indexedDB.open(WDB,1);
+    r.onupgradeneeded=function(){ r.result.createObjectStore(WST); };
+    r.onsuccess=function(){ res(r.result); }; r.onerror=function(){ rej(r.error); }; }); }
+  function wpGet(){ return wpDb().then(function(db){ return new Promise(function(res,rej){
+    var q=db.transaction(WST).objectStore(WST).get(wpKey()); q.onsuccess=function(){ res(q.result||null); }; q.onerror=function(){ rej(q.error); }; }); }); }
+  function wpPut(v){ return wpDb().then(function(db){ return new Promise(function(res,rej){
+    var tx=db.transaction(WST,'readwrite'); tx.objectStore(WST).put(v,wpKey()); tx.oncomplete=function(){ res(); }; tx.onerror=function(){ rej(tx.error); }; }); }); }
+  function wpDel(){ return wpDb().then(function(db){ return new Promise(function(res){
+    var tx=db.transaction(WST,'readwrite'); tx.objectStore(WST).delete(wpKey()); tx.oncomplete=function(){ res(); }; tx.onerror=function(){ res(); }; }); }).catch(function(){}); }
+
   function loadWallpaperState(){
     try{
-      wp.data = localStorage.getItem(LS_DATA) || null;
       var z = parseFloat(localStorage.getItem(LS_ZOOM));
       var d = parseFloat(localStorage.getItem(LS_DIM));
       wp.zoom = isNaN(z) ? 100 : z;
       wp.dim = isNaN(d) ? 45 : d;
     }catch(e){}
+    var legacy=null;
+    try{ legacy = localStorage.getItem(LS_DATA) || null; }catch(e){}
+    if(legacy){
+      // pindahkan wallpaper lama dari localStorage ke IndexedDB
+      wp.data = legacy;
+      wpPut(legacy).then(function(){ try{ localStorage.removeItem(LS_DATA); }catch(e){} }).catch(function(){});
+    }else{
+      wpGet().then(function(v){
+        if(!v) return;
+        wp.data = v;
+        var go=function(){ try{ applyWallpaper(); updateWallpaperUI(); if(typeof window.wvRefreshCardBgMode==='function') window.wvRefreshCardBgMode(); }catch(e){} };
+        if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',go); else go();
+      }).catch(function(){});
+    }
   }
 
   function saveWallpaperMeta(){
@@ -11178,6 +11861,7 @@ var WVColor = (function(){
     var layer = document.getElementById('wvWallpaperLayer');
     var img = document.getElementById('wvWallpaperImg');
     var root = document.documentElement.style;
+    window._wvWpHas = !!wp.data; window._wvWpData = wp.data || null;
     if(wp.data){
       img.src = wp.data;
       layer.classList.add('active');
@@ -11260,18 +11944,25 @@ var WVColor = (function(){
         if(typeof appAlert === 'function') appAlert('Gagal memproses gambar. Coba foto lain.');
         return;
       }
-      try{
-        localStorage.setItem(LS_DATA, dataUrl);
-      }catch(err){
-        if(typeof appAlert === 'function') appAlert('Gambar terlalu besar untuk disimpan di perangkat ini. Coba foto lain.');
-        return;
-      }
-      wp.data = dataUrl;
-      wp.zoom = 100; wp.dim = 45;
-      saveWallpaperMeta();
-      applyWallpaper();
-      updateWallpaperUI();
-      if(typeof window.wvRefreshCardBgMode === 'function') window.wvRefreshCardBgMode();
+      var done = function(){
+        wp.data = dataUrl;
+        wp.zoom = 100; wp.dim = 45;
+        saveWallpaperMeta();
+        applyWallpaper();
+        updateWallpaperUI();
+        if(typeof window.wvRefreshCardBgMode === 'function') window.wvRefreshCardBgMode();
+      };
+      wpPut(dataUrl).then(function(){
+        try{ localStorage.removeItem(LS_DATA); }catch(e){}
+        done();
+      }).catch(function(){
+        try{ localStorage.setItem(LS_DATA, dataUrl); }
+        catch(err){
+          if(typeof appAlert === 'function') appAlert('Gambar terlalu besar untuk disimpan di perangkat ini. Coba foto lain.');
+          return;
+        }
+        done();
+      });
     });
   };
 
@@ -11296,6 +11987,7 @@ var WVColor = (function(){
   window.removeWallpaper = function(){
     var doRemove = function(){
       try{ localStorage.removeItem(LS_DATA); }catch(e){}
+      wpDel();
       wp.data = null;
       applyWallpaper();
       updateWallpaperUI();
@@ -11399,7 +12091,7 @@ var WVColor = (function(){
     // kartu selalu default HITAM PEKAT (solid, tanpa blur, tanpa transparan)
     // karena tidak ada gunanya transparan ke latar polos.
     var hasWallpaper = false;
-    try{ hasWallpaper = !!localStorage.getItem('wv_wallpaper_data'); }catch(e){}
+    try{ hasWallpaper = !!window._wvWpHas || !!localStorage.getItem('wv_wallpaper_data'); }catch(e){}
     // Section "Blur & Transparansi Kartu" cuma relevan kalau ada wallpaper
     // (lihat catatan di bawah) — jadi disembunyikan total dari menu Tampilan
     // dan baru muncul otomatis begitu wallpaper dipasang.
@@ -11628,12 +12320,21 @@ var WVColor = (function(){
   function isDailyLikeSession(s){
     return !!(s && (s.mode === 'daily' || s.mode === 'repeat'));
   }
+  // Kategori (Kosakata / Slang & Idiom / dst) dari sesi harian yang
+  // sedang/terakhir berjalan — status & flag "berlangsung" disimpan PER
+  // KATEGORI, jadi menyelesaikan satu kategori tidak mengubah pill kategori lain.
+  var _dailyCat = 'kata';
+  function curCat(){
+    return (typeof currentDailyCategory === 'function') ? currentDailyCategory() : 'kata';
+  }
   function markStatus(st){
-    state.dailySessionStatus = st;
+    if (!state.dailySessionStatusByList) state.dailySessionStatusByList = {};
+    state.dailySessionStatusByList[_dailyCat] = st;
     try{ saveState(); }catch(e){}
   }
   function setActive(v){
-    state.dailySessionActive = v;
+    if (!state.dailySessionActiveByList) state.dailySessionActiveByList = {};
+    state.dailySessionActiveByList[_dailyCat] = !!v;
     try{ saveState(); }catch(e){}
   }
 
@@ -11647,6 +12348,7 @@ var WVColor = (function(){
   window.startSession = function(mode, listId){
     var r = _origStartSession(mode, listId);
     if (mode === 'daily' && typeof session !== 'undefined' && session && session.words && session.words.length) {
+      _dailyCat = curCat();
       setActive(true);
       markStatus('incomplete');
       wvLog('sesi harian dimulai,', session.words.length, 'kata');
@@ -11703,10 +12405,11 @@ var WVColor = (function(){
   var _origNextCard = window.nextCard;
   window.nextCard = function(){
     try{
+      // Kata yang jatah ulangnya habis TIDAK lagi menutup seluruh sesi:
+      // kata itu tetap tercatat "belum hafal" (muncul di tombol ULANGI
+      // KATA YANG BELUM) dan sesi lanjut ke kata berikutnya.
       if (isDailyLikeSession(session) && session._wvGiveUp) {
         session._wvGiveUp = false;
-        showComplete();
-        return;
       }
     }catch(e){}
     return _origNextCard.apply(this, arguments);
@@ -11737,7 +12440,7 @@ var WVColor = (function(){
   window.goHome = function(){
     try{
       var studyActive = document.getElementById('screenStudy') && document.getElementById('screenStudy').classList.contains('active');
-      if (studyActive && isDailyLikeSession(session) && state.dailySessionActive) {
+      if (studyActive && isDailyLikeSession(session) && (state.dailySessionActiveByList || {})[_dailyCat]) {
         setActive(false); // sesi ditinggal di tengah jalan → tetap berstatus 'incomplete' (tidak diubah jadi 'complete')
       }
     }catch(e){}
@@ -11751,8 +12454,7 @@ var WVColor = (function(){
     try{
       var studyActive = document.getElementById('screenStudy') && document.getElementById('screenStudy').classList.contains('active');
       if (studyActive && isDailyLikeSession(session)) {
-        state.dailySessionActive = true;
-        saveState();
+        setActive(true);
       }
     }catch(e){}
   }
@@ -11789,11 +12491,12 @@ var WVColor = (function(){
   var CROSS_BADGE = '<svg width="0.95em" height="0.95em" viewBox="0 0 60 60" style="vertical-align:-0.12em;overflow:visible"><circle cx="30" cy="30" r="20" fill="#E14747"/><path d="M21 21 L39 39 M39 21 L21 39" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round"/></svg>';
 
   function wvDailyPillState(){
-    if (!state.dailySessionWords || !state.dailySessionWords.length) return null; // belum pernah mulai sesi hari ini
     if (state.todayDate !== todayStr()) return null; // sesi itu bukan hari ini (sudah ganti hari)
-    if (state.dailySessionActive) return 'incomplete'; // sesi masih tercatat "berlangsung" tapi kita di Beranda → ditinggal/app ditutup di tengah jalan
-    if (state.dailySessionStatus === 'incomplete') return 'incomplete';
-    if (state.dailySessionStatus === 'complete') return 'complete';
+    var cat = curCat(); // status dibaca untuk kategori yang sedang aktif di Beranda
+    if ((state.dailySessionActiveByList || {})[cat]) return 'incomplete'; // sesi kategori ini masih tercatat "berlangsung" tapi kita di Beranda → ditinggal/app ditutup di tengah jalan
+    var st = (state.dailySessionStatusByList || {})[cat];
+    if (st === 'incomplete') return 'incomplete';
+    if (st === 'complete') return 'complete';
     return null; // status lama/tidak diketahui (data sebelum fitur ini ada) — biarkan tampilan asli
   }
 
@@ -11825,6 +12528,635 @@ var WVColor = (function(){
 })();
 
 
+</script>
+
+<script>
+// ══════════════════════════════════════════════
+// FITUR TAMBAHAN: Urungkan jawaban, suara (mute & kecepatan), meter
+// penyimpanan, kalender aktivitas, CSV, statistik per file.
+// ══════════════════════════════════════════════
+(function(){
+  'use strict';
+
+  // ───────── URUNGKAN JAWABAN TERAKHIR ─────────
+  var snap = null;
+  function cloneSess(sess){
+    var out = {};
+    Object.keys(sess).forEach(function(k){
+      var v = sess[k];
+      if (Array.isArray(v)) out[k] = v.slice();
+      else if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) out[k] = Object.assign({}, v);
+      else out[k] = v;
+    });
+    return out;
+  }
+  function takeSnap(w){
+    var t = todayStr();
+    return {
+      ref: session, word: w.word,
+      hadLearned: Object.prototype.hasOwnProperty.call(state.learned, w.word),
+      learned: state.learned[w.word] ? JSON.parse(JSON.stringify(state.learned[w.word])) : undefined,
+      todayCount: state.todayCount, byList: Object.assign({}, state.todayCountByList || {}),
+      dlDate: t, dl: (state.dailyLog || {})[t],
+      streak: state.streak, longestStreak: state.longestStreak, streakGivenDate: state.streakGivenDate,
+      streakFreezes: state.streakFreezes, streakNotice: state.streakNotice,
+      dailySessionDone: state.dailySessionDone, goalCompletedCount: state.goalCompletedCount,
+      lastStudyDate: state.lastStudyDate,
+      sess: cloneSess(session)
+    };
+  }
+  var _oa = window.answerCard;
+  window.answerCard = function(){
+    try {
+      var w = session && session.words && session.words[session.idx];
+      snap = w ? takeSnap(w) : null;
+    } catch(e) { snap = null; }
+    var r = _oa.apply(this, arguments);
+    try { updateUndoBtn(); } catch(e) {}
+    return r;
+  };
+  window.undoLastAnswer = function(){
+    if (!snap || snap.ref !== session) return;
+    var sn = snap; snap = null;
+    if (sn.hadLearned) state.learned[sn.word] = sn.learned; else delete state.learned[sn.word];
+    state.todayCount = sn.todayCount; state.todayCountByList = sn.byList;
+    if (!state.dailyLog) state.dailyLog = {};
+    if (sn.dl === undefined) delete state.dailyLog[sn.dlDate]; else state.dailyLog[sn.dlDate] = sn.dl;
+    state.streak = sn.streak; state.longestStreak = sn.longestStreak; state.streakGivenDate = sn.streakGivenDate;
+    state.streakFreezes = sn.streakFreezes; state.streakNotice = sn.streakNotice;
+    state.dailySessionDone = sn.dailySessionDone; state.goalCompletedCount = sn.goalCompletedCount;
+    state.lastStudyDate = sn.lastStudyDate;
+    Object.keys(session).forEach(function(k){ delete session[k]; });
+    Object.assign(session, sn.sess);
+    session.flipped = false;
+    saveState();
+    showCard();
+    updateUndoBtn();
+  };
+  function ensureUndoBtn(){
+    var b = document.getElementById('undoBtn');
+    if (b) return b;
+    var row = document.getElementById('actionRow');
+    if (!row || !row.parentNode) return null;
+    b = document.createElement('button');
+    b.id = 'undoBtn'; b.type = 'button'; b.className = 'undo-btn';
+    b.innerHTML = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg> URUNGKAN';
+    b.onclick = window.undoLastAnswer;
+    row.parentNode.insertBefore(b, row.nextSibling);
+    return b;
+  }
+  function updateUndoBtn(){
+    var b = ensureUndoBtn();
+    if (!b) return;
+    var scr = document.getElementById('screenStudy');
+    var ok = !!(snap && snap.ref === session && scr && scr.classList.contains('active') && session.idx < session.words.length);
+    b.style.display = ok ? 'inline-flex' : 'none';
+  }
+  var _osc = window.showCard;
+  window.showCard = function(){ var r = _osc.apply(this, arguments); try { updateUndoBtn(); } catch(e) {} return r; };
+  window.updateUndoBtn = updateUndoBtn;
+
+  // ───────── SUARA: mute & kecepatan ─────────
+  var SPEEDS = { slow: 0.8, normal: 1, fast: 1.25 };
+  function speechMuted(){ try { return localStorage.getItem('wv_speech_mute') === '1'; } catch(e){ return false; } }
+  function speechSpeed(){ try { var v = localStorage.getItem('wv_speech_speed'); return SPEEDS[v] ? v : 'normal'; } catch(e){ return 'normal'; } }
+  window.toggleSpeechMute = function(){
+    try { localStorage.setItem('wv_speech_mute', speechMuted() ? '0' : '1'); } catch(e){}
+    try { if (speechMuted() && window.speechSynthesis) speechSynthesis.cancel(); } catch(e){}
+    syncSpeechUI();
+  };
+  window.cycleSpeechSpeed = function(){
+    var order = ['slow','normal','fast'];
+    var next = order[(order.indexOf(speechSpeed()) + 1) % order.length];
+    try { localStorage.setItem('wv_speech_speed', next); } catch(e){}
+    syncSpeechUI();
+    try { if (!speechMuted()) { var u = new SpeechSynthesisUtterance('Hello'); u.lang = 'en-US'; speechSynthesis.cancel(); speechSynthesis.speak(u); } } catch(e){}
+  };
+  window.syncSpeechUI = function(){
+    var m = document.getElementById('speechMuteBtn');
+    if (m) {
+      var off = speechMuted();
+      m.textContent = off ? 'MATI' : 'AKTIF';
+      m.style.borderColor = off ? 'var(--border-light)' : 'var(--accent)';
+      m.style.color = off ? 'var(--text3)' : 'var(--accent)';
+      m.style.background = off ? 'transparent' : 'var(--accent-light)';
+    }
+    var sp = document.getElementById('speechSpeedBtn');
+    if (sp) {
+      sp.textContent = { slow:'PELAN', normal:'NORMAL', fast:'CEPAT' }[speechSpeed()];
+      sp.style.borderColor = 'var(--accent)'; sp.style.color = 'var(--accent)'; sp.style.background = 'var(--accent-light)';
+    }
+  };
+  try {
+    if (window.speechSynthesis && !speechSynthesis.__wvPatched) {
+      var origSpeak = speechSynthesis.speak.bind(speechSynthesis);
+      speechSynthesis.speak = function(u){
+        if (speechMuted()) {
+          try { if (u && typeof u.onend === 'function') setTimeout(function(){ try { u.onend({}); } catch(e){} }, 0); } catch(e){}
+          return;
+        }
+        try {
+          if (u && !u.__wvScaled) { u.__wvScaled = true; u.rate = Math.max(0.3, Math.min(2, (u.rate || 1) * SPEEDS[speechSpeed()])); }
+        } catch(e){}
+        return origSpeak(u);
+      };
+      speechSynthesis.__wvPatched = true;
+    }
+  } catch(e){}
+
+  // ───────── METER PENYIMPANAN ─────────
+  var _meterAt = 0;
+  window.syncStorageMeter = function(force){
+    var val = document.getElementById('storageMeterVal');
+    var sub = document.getElementById('storageMeterSub');
+    if (!val || !sub) return;
+    if (!force && (Date.now() - _meterAt < 15000 || val.offsetParent === null)) return;
+    _meterAt = Date.now();
+    try {
+      var total = 0, stateLen = 0, wallLen = 0;
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i), len = k.length + (localStorage.getItem(k) || '').length;
+        total += len;
+        if (/vocabku_v3_state$/.test(k)) stateLen += len;
+        if (/wv_wallpaper_data$/.test(k)) wallLen += len;
+      }
+      var LIMIT = 5 * 1024 * 1024;
+      var pct = Math.min(100, Math.round(total / LIMIT * 100));
+      val.textContent = (total / 1048576).toFixed(1) + ' / 5 MB';
+      val.style.color = pct >= 85 ? '#E5534B' : (pct >= 65 ? '#E0A030' : 'var(--accent)');
+      var kb = function(n){ return Math.round(n / 1024) + ' KB'; };
+      sub.textContent = 'Terpakai ' + pct + '% · data belajar ' + kb(stateLen) + (wallLen ? ' · wallpaper ' + kb(wallLen) : '')
+        + (pct >= 65 ? ' — hampir penuh, buat backup & kecilkan/hapus wallpaper' : '');
+    } catch(e) { sub.textContent = 'Tidak bisa membaca penyimpanan'; }
+  };
+  var _ost = window.showTab;
+  if (_ost) window.showTab = function(){ var r = _ost.apply(this, arguments); setTimeout(function(){ try { syncStorageMeter(true); } catch(e){} }, 80); return r; };
+
+  // ───────── KALENDER AKTIVITAS (HEATMAP) ─────────
+  window.renderHeatmapSection = function(){
+    var log = state.dailyLog || {};
+    var WEEKS = 17, now = new Date();
+    var dow = (now.getDay() + 6) % 7;                 // Senin=0 … Minggu=6
+    var totalCells = (WEEKS - 1) * 7 + dow + 1;
+    var goal = Math.max(1, getGoalFor('kata'));
+    var cells = '', active = 0, best = 0;
+    for (var i = totalCells - 1; i >= 0; i--) {
+      var d = new Date(now); d.setDate(d.getDate() - i);
+      var key = ymdLocal(d), v = log[key] || 0;
+      if (v > 0) active++;
+      if (v > best) best = v;
+      var lvl = v === 0 ? 0 : v < goal * 0.5 ? 1 : v < goal ? 2 : v < goal * 2 ? 3 : 4;
+      var label = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) + ': ' + v + ' kata';
+      cells += '<i class="hm-cell hm-l' + lvl + (i === 0 ? ' hm-today' : '') + '" title="' + label + '"></i>';
+    }
+    return '<div class="prog-section-header"><div class="prog-section-header-title">Kalender Aktivitas</div>'
+      + '<div class="prog-section-header-badge">' + active + ' hari aktif</div></div>'
+      + '<div class="hm-wrap"><div class="hm-grid">' + cells + '</div>'
+      + '<div class="hm-legend"><span>Sedikit</span><i class="hm-cell hm-l1"></i><i class="hm-cell hm-l2"></i><i class="hm-cell hm-l3"></i><i class="hm-cell hm-l4"></i><span>Banyak</span>'
+      + '<span style="margin-left:auto">Terbanyak ' + best + ' kata</span></div></div>';
+  };
+
+  // ───────── CSV: EKSPOR & IMPOR ─────────
+  function csvEsc(v){ v = (v == null ? '' : String(v)); return /[",\n\r;]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  function deliverBlob(blob, fname){
+    try {
+      var f = new File([blob], fname, { type: blob.type });
+      if (navigator.canShare && navigator.canShare({ files: [f] }) && navigator.share) {
+        navigator.share({ files: [f], title: fname }).catch(function(err){ if (!err || err.name !== 'AbortError') dl(); });
+        return;
+      }
+    } catch(e) {}
+    dl();
+    function dl(){
+      var url = URL.createObjectURL(blob), a = document.createElement('a');
+      a.href = url; a.download = fname; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    }
+  }
+  window.exportVocabCSV = function(listId){
+    listId = getListById(listId) ? listId : 'kata';
+    var words = loadCustomWords().filter(function(w){ return (w.listId || 'kata') === listId; });
+    if (!words.length) { appAlert('Belum ada kata di kategori ini untuk diekspor.'); return; }
+    var fileOf = {};
+    getFilesForList(listId).forEach(function(f){ (f.words || []).forEach(function(w){ var k = String(w).toLowerCase(); if (!fileOf[k]) fileOf[k] = f.name; }); });
+    var rows = ['word,meaning,pronunciation,pos,example,category,file'];
+    words.forEach(function(w){
+      rows.push([w.word, w.meaning, w.pronunciation, w.pos, w.example, w.category, fileOf[String(w.word).toLowerCase()]].map(csvEsc).join(','));
+    });
+    var blob = new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    deliverBlob(blob, 'flash-' + listId + '-' + todayStr() + '.csv');
+  };
+  function parseCSV(text){
+    text = text.replace(/^\ufeff/, '');
+    var first = text.split(/\r?\n/, 1)[0] || '';
+    var delim = [',', ';', '\t'].map(function(d){ return [d, first.split(d).length]; }).sort(function(a, b){ return b[1] - a[1]; })[0][0];
+    var rows = [], row = [], cur = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c;
+      } else if (c === '"') q = true;
+      else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; if (row.some(function(x){ return x.trim() !== ''; })) rows.push(row); row = []; }
+      else cur += c;
+    }
+    row.push(cur); if (row.some(function(x){ return x.trim() !== ''; })) rows.push(row);
+    return rows;
+  }
+  window.importVocabCSV = function(file, listId){
+    if (!file) return;
+    listId = getListById(listId) ? listId : 'kata';
+    var rd = new FileReader();
+    rd.onload = function(e){
+      var rows;
+      try { rows = parseCSV(String(e.target.result || '')); } catch(err) { appAlert('File CSV tidak bisa dibaca.'); return; }
+      if (rows.length < 2) { appAlert('CSV kosong atau hanya berisi judul kolom.'); return; }
+      var head = rows[0].map(function(h){ return h.trim().toLowerCase(); });
+      var alias = { word: ['word','kata','english','inggris'], meaning: ['meaning','arti','artinya','indonesia','terjemahan'], pronunciation: ['pronunciation','pelafalan','ipa'], pos: ['pos','jenis'], example: ['example','contoh'], category: ['category','kategori'], file: ['file','kelompok','group'] };
+      var idx = {};
+      Object.keys(alias).forEach(function(k){ idx[k] = -1; alias[k].forEach(function(a){ if (idx[k] < 0 && head.indexOf(a) >= 0) idx[k] = head.indexOf(a); }); });
+      var hasHeader = idx.word >= 0 && idx.meaning >= 0;
+      if (!hasHeader) { idx = { word: 0, meaning: 1, pronunciation: -1, pos: -1, example: -1, category: -1, file: -1 }; }
+      var start = hasHeader ? 1 : 0, words = [], files = {};
+      for (var i = start; i < rows.length; i++) {
+        var r = rows[i], g = function(k){ return idx[k] >= 0 && r[idx[k]] != null ? String(r[idx[k]]).trim() : ''; };
+        var w = g('word'), m = g('meaning');
+        if (!w || !m) continue;
+        words.push({ word: w, meaning: m, pronunciation: g('pronunciation'), pos: g('pos'), example: g('example'), category: g('category') || 'Umum' });
+        var fn = g('file');
+        if (fn) { (files[fn] = files[fn] || []).push(w); }
+      }
+      if (!words.length) { appAlert('Tidak ada baris yang valid. Kolom wajib: word dan meaning.'); return; }
+      var data = { words: words, files: Object.keys(files).map(function(n){ return { name: n, words: files[n] }; }) };
+      importVocabBackup(new File([JSON.stringify(data)], 'import.json', { type: 'application/json' }), listId);
+    };
+    rd.readAsText(file);
+  };
+  var _baseCad = window.renderCadanganDataSection;
+  window.renderCadanganDataSection = function(listId){
+    var id = getListById(listId) ? listId : 'kata';
+    return _baseCad.apply(this, arguments)
+      + '<div class="prog-action-row" style="margin-top:8px">'
+      + '<button class="prog-action-btn export" onclick="exportVocabCSV(\'' + id + '\')">EKSPOR CSV</button>'
+      + '<button class="prog-action-btn import" onclick="document.getElementById(\'importCSVInput_' + id + '\').click()">IMPOR CSV</button>'
+      + '</div><div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4">Kolom: word, meaning, pronunciation, pos, example, category, file. Bisa dibuat di Excel/Sheets.</div>'
+      + '<input type="file" id="importCSVInput_' + id + '" accept=".csv,text/csv,text/plain" style="display:none" onchange="importVocabCSV(this.files[0], \'' + id + '\'); this.value=\'\'">';
+  };
+
+  // ───────── STATISTIK PER FILE ─────────
+  window.renderFileStatsCard = function(f, wordObjs){
+    if (!wordObjs.length) return '';
+    var total = wordObjs.length;
+    var notM = wordObjs.filter(function(v){ return !isWordMastered(v.word); });
+    var seen = wordObjs.filter(function(v){ return state.learned[v.word]; }).length;
+    var wrong = wordObjs.map(function(v){ var c = state.learned[v.word] || {}; return { w: v.word, n: (c.wrongCount || 0) + (c.lapses || 0) }; })
+      .filter(function(x){ return x.n > 0; }).sort(function(a, b){ return b.n - a.n; }).slice(0, 3);
+    var est = computeEstimate(f.listId || 'kata');
+    var etaTxt, etaSub = '';
+    if (!notM.length) etaTxt = 'Selesai';
+    else if (est.pace > 0) {
+      var days = Math.ceil(notM.length / est.pace), d = new Date(); d.setDate(d.getDate() + days);
+      etaTxt = '±' + days + ' hari';
+      etaSub = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    } else etaTxt = '—';
+    function cell(label, val){ return '<div class="fs-cell"><div class="fs-val">' + val + '</div><div class="fs-label">' + label + '</div></div>'; }
+    return '<div class="fs-card">'
+      + '<div class="fs-grid">' + cell('Sudah dilihat', seen + '/' + total) + cell('Belum hafal', notM.length) + cell('Estimasi selesai' + (etaSub ? ' · ' + etaSub : ''), etaTxt) + '</div>'
+      + (wrong.length ? '<div class="fs-wrong"><span>Paling sering salah:</span> ' + wrong.map(function(x){ return cfEsc(x.w) + ' <b>×' + x.n + '</b>'; }).join(' · ') + '</div>' : '')
+      + '</div>';
+  };
+
+  try { ensureUndoBtn(); syncSpeechUI(); } catch(e) {}
+  try { if (typeof updateHome === 'function') updateHome(); } catch(e) {}
+})();
+</script>
+
+<script>
+// ══ TEMPAT SAMPAH (30 hari) + BACKUP OTOMATIS (IndexedDB, 3 salinan) ══
+(function(){
+  var TRASH_KEY='vocabku_trash', DAYS=30, MS=DAYS*864e5;
+  function esc(t){return String(t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function toast(m){try{showSimpleToast(m);}catch(e){}}
+  function loadTrash(){
+    try{var a=JSON.parse(localStorage.getItem(TRASH_KEY)||'[]');var now=Date.now();
+      return a.filter(function(t){return now-t.deletedAt<MS;});}catch(e){return[];}
+  }
+  function saveTrash(a){try{localStorage.setItem(TRASH_KEY,JSON.stringify(a));}catch(e){}refreshSubs();}
+  window.wvTrashWords=function(list){
+    var cw=loadCustomWords(),files=loadWordFiles(),t=loadTrash(),now=Date.now();
+    list.forEach(function(w){
+      var obj=cw.find(function(x){return x.word===w;});if(!obj)return;
+      t=t.filter(function(x){return x.item.word!==w;});
+      t.unshift({item:obj,fileIds:files.filter(function(f){return f.words.indexOf(w)!==-1;}).map(function(f){return f.id;}),deletedAt:now});
+    });
+    saveTrash(t);
+  };
+  function restore(i){
+    var t=loadTrash(),e=t[i];if(!e)return;
+    var cw=loadCustomWords();
+    if(!cw.some(function(x){return x.word===e.item.word;})){cw.push(e.item);saveCustomWords(cw);}
+    var files=loadWordFiles();
+    files.forEach(function(f){if(e.fileIds.indexOf(f.id)!==-1&&f.words.indexOf(e.item.word)===-1)f.words.push(e.item.word);});
+    saveWordFiles(files);
+    try{syncCustomWordsIntoVocab();}catch(x){}
+    t.splice(i,1);saveTrash(t);
+    try{var si=document.getElementById('kosakataSearchInput');renderKosakataList(si?si.value:'');updateHome();}catch(x){}
+    toast('"'+e.item.word+'" dipulihkan.');
+  }
+  // ── modal sederhana
+  function modal(title,html){
+    var o=document.getElementById('wvModal');if(o)o.remove();
+    o=document.createElement('div');o.id='wvModal';
+    o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.7);display:flex;align-items:flex-end;justify-content:center';
+    o.innerHTML='<div style="width:100%;max-width:480px;max-height:80vh;overflow:auto;background:var(--bg3);border:1px solid var(--border-light);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));color:var(--text);font-family:var(--font-body)"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><b style="font-size:15px">'+title+'</b><button onclick="document.getElementById(\'wvModal\').remove()" style="background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer">×</button></div>'+html+'</div>';
+    o.addEventListener('click',function(e){if(e.target===o)o.remove();});
+    document.body.appendChild(o);
+  }
+  var B='padding:6px 12px;border-radius:12px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--accent);background:var(--accent-light);color:var(--accent);font-family:inherit';
+  var ROW='display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light)';
+  window.wvOpenTrash=function(){
+    var t=loadTrash(),h='';
+    if(!t.length)h='<div style="color:var(--text2);font-size:13px;padding:12px 0">Belum ada kata yang dihapus.</div>';
+    t.forEach(function(e,i){
+      var left=Math.max(1,Math.ceil((MS-(Date.now()-e.deletedAt))/864e5));
+      h+='<div style="'+ROW+'"><div style="min-width:0"><div style="font-weight:700;font-size:14px">'+esc(e.item.word)+'</div><div style="font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(e.item.meaning||'')+' · sisa '+left+' hari</div></div><button style="'+B+'" onclick="wvRestore('+i+')">PULIHKAN</button></div>';
+    });
+    modal('Terhapus Baru-baru Ini',h);
+  };
+  window.wvRestore=function(i){restore(i);wvOpenTrash();};
+
+  // ── BACKUP OTOMATIS (IndexedDB)
+  var DB='wilvocab_autobackup',ST='snaps',MAXS=3,GAP=6*36e5;
+  function idb(){return new Promise(function(res,rej){
+    if(!window.indexedDB)return rej();
+    var r=indexedDB.open(DB,1);
+    r.onupgradeneeded=function(){r.result.createObjectStore(ST,{keyPath:'id'});};
+    r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});}
+  function all(db){return new Promise(function(res){var q=db.transaction(ST).objectStore(ST).getAll();q.onsuccess=function(){res(q.result||[]);};q.onerror=function(){res([]);};});}
+  function pid(){try{return localStorage.getItem('wv_active_profile_v1')||'default';}catch(e){return'default';}}
+  function pfx(){return 'p_'+pid()+'__';}
+  function collect(){
+    try{flushState();}catch(e){}
+    var P=pfx(),out={};
+    try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);
+      if(k&&k.indexOf(P)===0&&k.indexOf('wv_wallpaper_data')===-1){
+        out[k]=Storage.prototype.getItem.call(localStorage,k);}}}catch(e){}
+    return out;
+  }
+  var _snapBusy=false;
+  function snapshot(force){
+    if(_snapBusy)return;_snapBusy=true;
+    idb().then(function(db){return all(db).then(function(list){
+      var mine=list.filter(function(s){return s.pid===pid();}).sort(function(a,b){return b.at-a.at;});
+      var data=collect(),json=JSON.stringify(data);
+      var hasWords=Object.keys(data).some(function(k){return /custom_words|state/.test(k)&&data[k]&&data[k].length>10;});
+      if(!hasWords)return; // jangan menimpa salinan bagus dengan data kosong
+      if(mine[0]&&(mine[0].json===json||(!force&&Date.now()-mine[0].at<GAP)))return;
+      var tx=db.transaction(ST,'readwrite'),os=tx.objectStore(ST);
+      os.put({id:Date.now()+'_'+pid(),pid:pid(),at:Date.now(),json:json});
+      mine.slice(MAXS-1).forEach(function(s){os.delete(s.id);});
+      tx.oncomplete=refreshSubs;
+    });}).catch(function(){}).then(function(){_snapBusy=false;});
+  }
+  function fmt(t){var d=new Date(t);return d.toLocaleDateString('id-ID',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});}
+  window.wvOpenSnaps=function(){
+    idb().then(all).then(function(list){
+      var mine=list.filter(function(s){return s.pid===pid();}).sort(function(a,b){return b.at-a.at;});
+      var h='<div style="font-size:12px;color:var(--text2);margin-bottom:6px">Salinan dibuat otomatis saat app dibuka/ditutup (maks. 1 per 6 jam). Memulihkan akan menimpa data sekarang lalu memuat ulang app.</div>';
+      if(!mine.length)h+='<div style="color:var(--text2);font-size:13px;padding:12px 0">Belum ada salinan.</div>';
+      mine.forEach(function(s){h+='<div style="'+ROW+'"><div><div style="font-weight:700;font-size:14px">'+fmt(s.at)+'</div><div style="font-size:11px;color:var(--text2)">'+Math.round(s.json.length/1024)+' KB</div></div><button style="'+B+'" onclick="wvRestoreSnap(\''+s.id+'\')">PULIHKAN</button></div>';});
+      h+='<div style="margin-top:12px"><button style="'+B+'" onclick="wvSnapNow()">BUAT SALINAN SEKARANG</button></div>';
+      modal('Backup Otomatis',h);
+    }).catch(function(){modal('Backup Otomatis','<div style="color:var(--text2);font-size:13px">Browser ini tidak mendukung IndexedDB (mungkin mode private).</div>');});
+  };
+  window.wvSnapNow=function(){snapshot(true);setTimeout(wvOpenSnaps,400);};
+  window.wvRestoreSnap=function(id){
+    appConfirm('Pulihkan data dari salinan ini? Data sekarang akan ditimpa.',function(){
+      idb().then(all).then(function(list){
+        var s=list.find(function(x){return x.id===id;});if(!s)return;
+        var data=JSON.parse(s.json),P=pfx(),del=[];
+        for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf(P)===0&&k.indexOf('wv_wallpaper_data')===-1)del.push(k);}
+        del.forEach(function(k){Storage.prototype.removeItem.call(localStorage,k);});
+        Object.keys(data).forEach(function(k){Storage.prototype.setItem.call(localStorage,k,data[k]);});
+        window.__wvNoFlush=true;
+        location.reload();
+      });
+    });
+  };
+  function refreshSubs(){
+    var a=document.getElementById('wvTrashSub'),b=document.getElementById('wvAutoSub');
+    if(a){var n=loadTrash().length;a.textContent=n?n+' kata bisa dipulihkan (30 hari)':'Kata yang dihapus disimpan 30 hari';}
+    if(b)idb().then(all).then(function(l){var m=l.filter(function(s){return s.pid===pid();}).sort(function(x,y){return y.at-x.at;});
+      b.textContent=m.length?m.length+' salinan · terakhir '+fmt(m[0].at):'3 salinan terakhir disimpan di dalam app';}).catch(function(){});
+  }
+  // cegah flushState menimpa data hasil restore saat halaman ditutup
+  window.addEventListener('load',function(){setTimeout(function(){snapshot(false);refreshSubs();},4000);});
+  document.addEventListener('visibilitychange',function(){if(document.hidden)snapshot(false);else refreshSubs();});
+  setInterval(refreshSubs,15000);
+})();
+</script>
+
+<script>
+// ══ FAVORIT, PILIH BANYAK (tandai/pindah), KETIK KATA ══
+(function(){
+  var FAV='vocabku_favorites';
+  function favs(){try{return JSON.parse(localStorage.getItem(FAV)||'{}')||{};}catch(e){return{};}}
+  function saveFavs(m){try{localStorage.setItem(FAV,JSON.stringify(m));}catch(e){}}
+  var STAR_ON='<svg viewBox="0 0 24 24" width="1em" height="1em" style="vertical-align:-0.15em;flex-shrink:0" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><polygon points="12,2 15,9 22,9.5 17,14.5 18.5,22 12,18 5.5,22 7,14.5 2,9.5 9,9"/></svg>';
+  var STAR_OFF=STAR_ON.replace('fill="currentColor"','fill="none"');
+  function toast(m){try{showSimpleToast(m);}catch(e){}}
+  window.isBookmarked=function(w){return !!favs()[w];};
+  window.toggleFavoriteCurrent=function(){
+    var w=session.words[session.idx];if(!w)return;
+    var m=favs(),on=!m[w.word];if(on)m[w.word]=1;else delete m[w.word];saveFavs(m);
+    var b=document.getElementById('bookmarkBtn');
+    if(b){b.innerHTML=on?STAR_ON:STAR_OFF;b.classList.toggle('active',on);}
+    toast(on?'"'+w.word+'" ditandai favorit.':'Tanda favorit dilepas.');
+  };
+  window.startFavoritStudy=function(){
+    var m=favs(),list=VOCAB.filter(function(v){return m[v.word];});
+    if(!list.length){appAlert('Belum ada kata favorit. Tandai kata dengan ikon bintang di kartu, atau pilih banyak kata di tab Kosakata lalu tekan ★.');return;}
+    startFlashcardWithWords(list,'Favorit ('+list.length+')');
+  };
+  // ── Pilih banyak: tombol ★ dan Pindah di bar
+  var BTN='padding:9px 10px;border-radius:var(--r-sm);font-family:var(--font-body);font-size:11px;font-weight:700;cursor:pointer;border:var(--border-w) solid var(--border-light);background:var(--bg3);color:var(--text);flex:0 0 auto';
+  function addBarButtons(){
+    var d=document.getElementById('kosakataSelectDeleteBtn');if(!d||document.getElementById('kosakataSelectFavBtn'))return;
+    var f=document.createElement('button');f.id='kosakataSelectFavBtn';f.style.cssText=BTN;f.title='Tandai / lepas favorit';f.innerHTML=STAR_ON;f.onclick=bulkToggleFav;
+    var mv=document.createElement('button');mv.id='kosakataSelectMoveBtn';mv.style.cssText=BTN;mv.textContent='Pindah';mv.title='Pindah ke daftar lain';mv.onclick=bulkMove;
+    d.parentNode.insertBefore(f,d);d.parentNode.insertBefore(mv,d);
+  }
+  function endSelect(){
+    kosakataSelected={};kosakataSelectMode=false;
+    var si=document.getElementById('kosakataSearchInput');renderKosakataList(si?si.value:'');updateHome();
+  }
+  function bulkToggleFav(){
+    var sel=Object.keys(kosakataSelected);if(!sel.length)return;
+    var m=favs(),all=sel.every(function(w){return m[w];});
+    sel.forEach(function(w){if(all)delete m[w];else m[w]=1;});saveFavs(m);
+    toast(sel.length+(all?' kata dilepas dari favorit.':' kata ditandai favorit.'));endSelect();
+  }
+  function bulkMove(){
+    var sel=Object.keys(kosakataSelected),cw=loadCustomWords();if(!sel.length)return;
+    var mine=cw.filter(function(w){return sel.indexOf(w.word)!==-1;});
+    if(!mine.length){appAlert('Kata bawaan app tidak bisa dipindah daftar. Pilih kata buatanmu sendiri.');return;}
+    var target=(kosakataViewMode==='slang')?'kata':'slang',name=getListById(target).name;
+    var skip=sel.length-mine.length;
+    appConfirm('Pindahkan '+mine.length+' kata ke "'+name+'"?'+(skip?' ('+skip+' kata bawaan dilewati.)':'')+' Kata akan keluar dari file yang kategorinya berbeda.',function(){
+      mine.forEach(function(w){w.listId=target;w.isSlang=(target==='slang');});
+      saveCustomWords(cw);syncCustomWordsIntoVocab();
+      var files=loadWordFiles();
+      files.forEach(function(f){if((f.listId||'kata')!==target)f.words=f.words.filter(function(x){return !mine.some(function(w){return w.word===x;});});});
+      saveWordFiles(files);toast(mine.length+' kata dipindah ke '+name+'.');endSelect();
+    });
+  }
+  var _upd=window.updateKosakataSelectBar;
+  window.updateKosakataSelectBar=function(){
+    addBarButtons();if(_upd)_upd.apply(this,arguments);
+    var n=Object.keys(kosakataSelected).length;
+    ['kosakataSelectFavBtn','kosakataSelectMoveBtn'].forEach(function(id){var b=document.getElementById(id);if(b){b.disabled=n===0;b.style.opacity=n?'1':'0.4';b.style.pointerEvents=n?'auto':'none';}});
+  };
+  // ── Ketik Kata
+  var tw={words:[],idx:0,correct:0,answered:false,hinted:false};
+  var $=function(i){return document.getElementById(i);};
+  window.startTypeWordMode=function(listId){
+    listId=listId||(typeof homeSessionListId!=='undefined'&&homeSessionListId)||'kata';
+    var words=getPracticePool(10,listId);
+    if(!words.length){appAlert('Belum ada kosakata untuk dilatih.');return;}
+    tw={words:words,idx:0,correct:0,answered:false,hinted:false};
+    showScreen('screenTypeWord');twRender();
+  };
+  function twRender(){
+    var w=tw.words[tw.idx],n=tw.words.length;
+    $('twProg').textContent=(tw.idx+1)+'/'+n;$('twProgressBar').style.width=(tw.idx/n*100)+'%';
+    $('twMeaning').textContent=w.meaning;$('twHint').textContent=w.pos?String(w.pos):'';
+    var i=$('twInput');i.value='';i.disabled=false;
+    $('twFeedback').style.display='none';$('twNextBtn').style.display='none';
+    $('twCheckBtn').style.display='';$('twHintBtn').style.display='';
+    tw.answered=false;tw.hinted=false;setTimeout(function(){i.focus();},250);
+  }
+  window.twShowHint=function(){
+    var w=tw.words[tw.idx];if(!w||tw.answered)return;tw.hinted=true;
+    $('twHint').textContent=w.word.charAt(0)+' '+w.word.slice(1).replace(/[^\s]/g,'_ ').trim()+'  ('+w.word.length+' huruf)';
+  };
+  window.checkTypeWord=function(){
+    if(tw.answered)return;var w=tw.words[tw.idx];
+    var norm=function(x){return String(x).toLowerCase().trim().replace(/\s+/g,' ');};
+    var val=$('twInput').value,ok=norm(val)===norm(w.word)&&norm(val)!=='';
+    tw.answered=true;$('twInput').disabled=true;$('twCheckBtn').style.display='none';$('twHintBtn').style.display='none';
+    // jawaban benar tapi pakai petunjuk dihitung belum hafal agar SRS jujur
+    var good=ok&&!tw.hinted;recordSrsAnswer(w,good);pulseProgressBar('twProgressBar',good);if(ok)tw.correct++;
+    var fb=$('twFeedback');fb.style.display='';
+    var c=ok?'green':'red';
+    fb.style.background='var(--'+c+'-bg)';fb.style.border='1.5px solid var(--'+c+'-text)';fb.style.color='var(--'+c+'-text)';
+    fb.textContent=ok?'✓ Benar! "'+w.word+'"'+(tw.hinted?' (pakai petunjuk, SRS dihitung belum hafal)':''):'✕ Jawabanmu: "'+(val||'(kosong)')+'". Yang benar: "'+w.word+'".';
+    $('twNextBtn').style.display='';
+  };
+  window.twNext=function(){
+    tw.idx++;
+    if(tw.idx>=tw.words.length){appAlert('Latihan selesai! Benar '+tw.correct+' dari '+tw.words.length+'.','SELESAI');goHome();return;}
+    twRender();
+  };
+  // ── daftarkan mode Favorit & Ketik Kata di Mode Belajar
+  var I1='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="12,2 15,9 22,9.5 17,14.5 18.5,22 12,18 5.5,22 7,14.5 2,9.5 9,9"/></svg>';
+  var I2='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M8 14h8"/></svg>';
+  MODE_ITEMS.push({id:'typeword',name:'Ketik Kata',desc:'Lihat arti, ketik katanya',action:'startTypeWordMode()',icon:I2});
+  MODE_ITEMS.push({id:'favorit',name:'Favorit',desc:'Belajar kata yang kamu tandai',action:'startFavoritStudy()',icon:I1});
+  if(typeof MODE_START_DISPATCH==='object'){
+    MODE_START_DISPATCH.typeword=function(l){startTypeWordMode(l);};
+    MODE_START_DISPATCH.favorit=function(){startFavoritStudy();};
+  }
+  try{renderModeGrid();}catch(e){}
+  window.addEventListener('load',addBarButtons);
+})();
+</script>
+
+<script>
+// ══ CARI DARI BERANDA, CATATAN PRIBADI ══
+(function(){
+  var html=document.documentElement;
+
+  // ── catatan per kata
+  var NK='vocabku_notes',$=function(i){return document.getElementById(i);};
+  function notes(){try{return JSON.parse(localStorage.getItem(NK)||'{}')||{};}catch(e){return{};}}
+  function saveNote(w,v){var m=notes();v=(v||'').trim();if(v)m[w]=v;else delete m[w];try{localStorage.setItem(NK,JSON.stringify(m));}catch(e){}}
+  function esc(t){return String(t==null?'':t).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+  function toast(m){try{showSimpleToast(m);}catch(e){}}
+  function noteLine(){
+    var ex=document.querySelector('.card-extras');if(!ex)return null;
+    var l=$('cardNoteLine');
+    if(!l){l=document.createElement('div');l.id='cardNoteLine';l.style.cssText='display:none;margin:8px 16px 0;padding:9px 12px;border-radius:var(--r-sm);border:var(--border-w) dashed var(--border-light);color:var(--text2);font-size:12.5px;line-height:1.5;text-align:left';ex.parentNode.insertBefore(l,ex.nextSibling);}
+    return l;
+  }
+  function refreshNote(){
+    var l=noteLine(),fc=$('flashcard');if(!l)return;
+    var w=session&&session.words&&session.words[session.idx],n=w&&notes()[w.word];
+    var flipped=fc&&fc.classList.contains('flipped');
+    l.style.display=(n&&flipped)?'':'none';if(n)l.textContent='Catatan: '+n;
+    var b=$('noteBtn');if(b)b.style.color=n?'var(--gold)':'';
+  }
+  window.editNoteCurrent=function(){
+    var w=session.words[session.idx];if(!w)return;
+    appPrompt('Catatan pribadi untuk "'+w.word+'" (jembatan keledai, pengingat, dll). Kosongkan untuk menghapus.',notes()[w.word]||'',function(v){
+      saveNote(w.word,v);refreshNote();toast(v&&v.trim()?'Catatan disimpan.':'Catatan dihapus.');
+    },'CATATAN');
+  };
+  (function(){var fc=$('flashcard');if(fc)try{new MutationObserver(refreshNote).observe(fc,{attributes:true,attributeFilter:['class']});}catch(e){}})();
+  var _sc=window.showCard;
+  if(typeof _sc==='function')window.showCard=showCard=function(){var r=_sc.apply(this,arguments);try{refreshNote();}catch(e){}return r;};
+
+  // ── cari dari beranda
+  function find(q){
+    q=q.toLowerCase().trim();if(!q)return[];var nm=notes(),out=[];
+    (typeof VOCAB!=='undefined'?VOCAB:[]).forEach(function(v){
+      var w=String(v.word||'').toLowerCase(),m=String(v.meaning||'').toLowerCase(),r=-1;
+      if(w===q)r=0;else if(w.indexOf(q)===0)r=1;else if(w.indexOf(q)!==-1)r=2;else if(m.indexOf(q)!==-1)r=3;else if(nm[v.word]&&nm[v.word].toLowerCase().indexOf(q)!==-1)r=4;
+      if(r>=0)out.push({v:v,r:r});});
+    out.sort(function(a,b){return a.r-b.r||a.v.word.length-b.v.word.length;});
+    return out.slice(0,8).map(function(x){return x.v;});
+  }
+  window.wvToggleSearch=function(){
+    var w=$('homeSearchWrap'),i=$('homeSearchInput'),ic=$('homeSearchIcon');if(!w)return;
+    var open=w.style.display==='none';
+    w.style.display=open?'block':'none';
+    if(ic)ic.innerHTML=open?'<path d="M6 6l12 12M18 6L6 18"/>':'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>';
+    if(open){setTimeout(function(){try{i.focus();}catch(e){}},30);}
+    else{i.value='';var b=$('homeSearchResults');if(b)b.style.display='none';i.blur();}
+  };
+  window.wvHomeSearch=function(q){
+    var box=$('homeSearchResults'),list=find(q);
+    if(!q.trim()){box.style.display='none';return;}
+    box.style.display='';
+    if(!list.length){box.innerHTML='<div style="padding:12px 14px;font-size:13px;color:var(--text2)">Kata tidak ditemukan.</div>';return;}
+    box.innerHTML=list.map(function(v,i){return '<div onclick="wvWordDetail('+i+')" style="padding:10px 14px;border-top:'+(i?'1px solid var(--border-light)':'none')+';cursor:pointer"><span style="font-weight:700;font-size:14px;color:var(--text)">'+esc(v.word)+'</span> <span style="font-size:12.5px;color:var(--text2)">· '+esc(v.meaning)+'</span></div>';}).join('');
+    window._wvHits=list;
+  };
+  window.wvWordDetail=function(i){
+    var v=(window._wvHits||[])[i];if(!v)return;
+    var o=$('wvDetail');if(o)o.remove();
+    o=document.createElement('div');o.id='wvDetail';
+    o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;justify-content:center';
+    var fav=typeof isBookmarked==='function'&&isBookmarked(v.word);
+    var ex=v.example?'<div style="margin-top:10px;font-size:13px;color:var(--text2);font-style:italic">'+esc(v.example)+'</div>':'';
+    o.innerHTML='<div style="width:100%;max-width:480px;max-height:85vh;overflow:auto;background:var(--bg3);border:1px solid var(--border-light);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));color:var(--text);font-family:var(--font-body)">'
+     +'<div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:24px;font-weight:700">'+esc(v.word)+'</div><div style="font-size:12px;color:var(--text3)">'+esc(v.pronunciation||'')+'</div></div><button onclick="document.getElementById(\'wvDetail\').remove()" style="background:none;border:none;color:var(--text2);font-size:24px;cursor:pointer">×</button></div>'
+     +'<div style="margin-top:8px;font-size:16px">'+esc(v.meaning)+'</div>'+ex
+     +'<div style="margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:.5px;color:var(--text2)">CATATAN PRIBADI</div>'
+     +'<textarea id="wvDetailNote" rows="3" placeholder="Jembatan keledai, pengingat..." style="width:100%;box-sizing:border-box;background:var(--surface);border:var(--border-w) solid var(--border-light);border-radius:var(--r-sm);padding:10px 12px;color:var(--text);font-family:inherit;font-size:13.5px;outline:none;resize:vertical">'+esc(notes()[v.word]||'')+'</textarea>'
+     +'<div style="display:flex;gap:8px;margin-top:10px"><button id="wvDSave" style="flex:1;padding:11px;border-radius:12px;border:none;background:var(--accent);color:var(--accent-inv);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">SIMPAN CATATAN</button>'
+     +'<button id="wvDSpeak" style="padding:11px 14px;border-radius:12px;border:var(--border-w) solid var(--border-light);background:transparent;color:var(--text);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit">SUARA</button>'
+     +'<button id="wvDFav" style="padding:11px 14px;border-radius:12px;border:var(--border-w) solid var(--border-light);background:transparent;color:var(--text);font-weight:700;font-size:14px;cursor:pointer;font-family:inherit">'+(fav?'★':'☆')+'</button></div></div>';
+    o.addEventListener('click',function(e){if(e.target===o)o.remove();});
+    document.body.appendChild(o);
+    $('wvDSave').onclick=function(){saveNote(v.word,$('wvDetailNote').value);toast('Catatan disimpan.');o.remove();};
+    $('wvDSpeak').onclick=function(){try{speechSynthesis.cancel();speechSynthesis.speak(makeSpeechUtterance(v.word,{rate:0.82}));}catch(e){}};
+    $('wvDFav').onclick=function(){
+      var m={};try{m=JSON.parse(localStorage.getItem('vocabku_favorites')||'{}')||{};}catch(e){}
+      var on=!m[v.word];if(on)m[v.word]=1;else delete m[v.word];
+      try{localStorage.setItem('vocabku_favorites',JSON.stringify(m));}catch(e){}
+      this.textContent=on?'★':'☆';};
+  };
+})();
 </script>
 </body>
 </html>
